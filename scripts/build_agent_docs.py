@@ -183,7 +183,7 @@ def main():
             return 0
 
     # the app walkers need the real app (and a database for the settings section)
-    sys.path.insert(0, "/app")
+    sys.path.insert(0, REPO_ROOT)
     from app import create_app
     from app.config import Config
 

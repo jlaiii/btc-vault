@@ -17,9 +17,10 @@ Checks, in order:
 Exit code is non-zero if any check fails.
 """
 
+import os
 import sys
 
-sys.path.insert(0, "/app")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from embit import ec  # noqa: E402
 from embit.transaction import SIGHASH, Transaction  # noqa: E402

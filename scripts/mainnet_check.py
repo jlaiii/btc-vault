@@ -68,7 +68,7 @@ def sess():
 
 def reset_throttles():
     """Clear this script's own counters — they are per-IP and persist."""
-    sys.path.insert(0, "/app")
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from app import create_app
     from app.config import Config
     from app.extensions import db
@@ -88,7 +88,7 @@ def reset_throttles():
 
 def cleanup(username):
     """Remove the test account, reversing any balance rather than dropping it."""
-    sys.path.insert(0, "/app")
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from app import create_app, services
     from app.config import Config
     from app.extensions import db

@@ -23,7 +23,7 @@ from datetime import datetime, timedelta, timezone
 import pyotp
 import requests
 
-sys.path.insert(0, "/app")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 BASE = os.environ.get("E2E_BASE", "https://localhost")
 PASSED = []
