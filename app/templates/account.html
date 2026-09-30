@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Account — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Account</h1>
+
+<div class="card">
+  <div class="kv">
+    <span class="k">Username</span><span class="v">{{ current_user.username }}</span>
+    <span class="k">Balance</span><span class="v">{{ current_user.balance_sat | btc }} BTC</span>
+    <span class="k">Member since</span><span class="v">{{ current_user.created_at | fulltime }}</span>
+    <span class="k">Last sign-in</span>
+    <span class="v">{{ current_user.last_login_at | timeago }}
+      {% if current_user.last_login_ip %}<span class="dim">({{ current_user.last_login_ip }})</span>{% endif %}
+    </span>
+    <span class="k">Status</span>
+    <span class="v">{{ current_user.status }}{% if current_user.role == 'admin' %} · administrator{% endif %}</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Change username</h2>
+  <form method="post" action="{{ url_for('views.change_username') }}" data-once>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="text" name="username" value="{{ current_user.username }}"
+           pattern="[A-Za-z0-9_]{3,20}" maxlength="20" required
+           autocapitalize="none" autocorrect="off" spellcheck="false">
+    <div class="btn-row">
+      <button class="btn" type="submit">Update username</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Change password</h2>
+  <p class="small muted" style="margin-top:0">
+    Changing your password signs out every other device. There is no email reset — if
+    you lose your password, an administrator sets a new one for you.
+  </p>
+  <form method="post" action="{{ url_for('views.change_password') }}" data-once>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <label for="current">Current password</label>
+    <input type="password" id="current" name="current" autocomplete="current-password" required>
+
+    <label for="password">New password</label>
+    <input type="password" id="password" name="password" autocomplete="new-password"
+           minlength="{{ config.PASSWORD_MIN_LENGTH }}" required>
+    <div class="bar" id="pwBar"><span style="width:0%"></span></div>
+    <div class="hint"><span id="pwLabel"></span></div>
+
+    <label for="password2">Confirm new password</label>
+    <input type="password" id="password2" name="password2" autocomplete="new-password" required>
+
+    <div class="btn-row">
+      <button class="btn primary" type="submit">Change password</button>
+    </div>
+    {% if not sudo %}
+      <div class="hint">You will be asked to confirm your current password first.</div>
+    {% endif %}
+  </form>
+</div>
+
+<div class="card">
+  <h2>Sessions</h2>
+  <p class="small muted" style="margin-top:0">
+    Signing out everywhere is the fastest way to remove access if you think someone else
+    has your password.
+  </p>
+  <div class="btn-row">
+    <form method="post" action="{{ url_for('views.kill_other_sessions') }}" data-once>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn" type="submit">Sign out other devices</button>
+    </form>
+    <form method="post" action="{{ url_for('views.logout_all') }}" data-once>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn danger" type="submit">Sign out everywhere</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Security</h2>
+  <div class="row between">
+    <div>
+      <div class="t">Two-factor authentication</div>
+      <div class="s muted small">
+        {% if current_user.totp_enabled %}Enabled{% else %}Not enabled — strongly recommended{% endif %}
+      </div>
+    </div>
+    <a class="btn sm {{ 'ghost' if current_user.totp_enabled else 'primary' }}"
+       href="{{ url_for('views.security') }}">
+      {{ 'Manage' if current_user.totp_enabled else 'Enable' }}
+    </a>
+  </div>
+</div>
+
+<form method="post" action="{{ url_for('auth.logout') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn wide ghost" type="submit">Sign out</button>
+</form>
+{% endblock %}

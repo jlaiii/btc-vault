@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}Admin — {{ site_name }}{% endblock %}
+
+{% block content %}
+{% include "admin/_nav.html" %}
+
+{% if mismatch %}
+<div class="notice err">
+  <strong>Network mismatch.</strong> The wallet seed was created on
+  <strong>{{ mismatch }}</strong> but the app is now running on
+  <strong>{{ network }}</strong>. Existing deposit addresses will not be credited — do not
+  use this configuration until it is resolved.
+</div>
+{% endif %}
+
+<h1>Overview</h1>
+
+{% if holdings_error %}
+  <div class="notice err">Holdings unavailable: {{ holdings_error }}</div>
+{% endif %}
+
+{% if holdings %}
+<div class="balance-card">
+  <div class="tiny dim">On-chain holdings (all wallets)</div>
+  <div class="balance-amount">{{ holdings.onchain_sat | btc }}<span class="unit">BTC</span></div>
+  <div class="balance-usd">{% if price %}≈ {{ holdings.onchain_sat | usd }}{% endif %}</div>
+  <div class="stat-row">
+    <div class="stat"><div class="k">Owed to users</div>
+      <div class="v">{{ holdings.user_ledger_sat | btc }}</div></div>
+    <div class="stat"><div class="k">Confirmed</div>
+      <div class="v" style="color:var(--ok)">{{ holdings.onchain_confirmed_sat | btc }}</div></div>
+    <div class="stat"><div class="k">Operator fees</div>
+      <div class="v" style="color:var(--ok)">{{ holdings.fees_collected_sat | btc }}</div></div>
+    <div class="stat"><div class="k">Unconfirmed</div>
+      <div class="v" style="color:var(--warn)">{{ holdings.onchain_unconfirmed_sat | sats }}</div></div>
+    <div class="stat"><div class="k">Addresses</div>
+      <div class="v">{{ holdings.address_count }}</div></div>
+  </div>
+</div>
+
+{% if not signups_open %}
+  <div class="notice warn">
+    <strong>Signups are closed.</strong> New accounts cannot be created — the signup page
+    says so and the login page hides the link. Existing users are unaffected.
+    <a href="{{ url_for('admin.settings') }}">Change this in Settings</a>.
+  </div>
+{% endif %}
+
+{% if holdings.float_shortfall > 0 %}
+  <div class="notice err">
+    <strong>Float shortfall: {{ holdings.float_shortfall | sats }} sats.</strong>
+    Users are owed more than the wallet holds in <em>spendable</em> funds — usually an admin
+    credit that was not backed by a deposit. Sends will fail until this is funded or adjusted.
+  </div>
+{% else %}
+  <div class="notice ok">
+    Fully backed. Spendable funds cover every user balance, with
+    {{ holdings.fees_collected_sat | sats }} sats of collected service fees on top.
+    {% if holdings.onchain_unconfirmed_sat %}
+      ({{ holdings.onchain_unconfirmed_sat | sats }} sats pending confirmation
+      {%- if holdings.in_flight_sat %}, of which {{ holdings.in_flight_sat | sats }} is our
+      own change from a send we broadcast{% endif %} — third-party unconfirmed deposits are
+      not counted as backing because they can still disappear.)
+    {% endif %}
+  </div>
+{% endif %}
+
+{% for e in holdings.errors %}
+  <div class="notice warn">Explorer error: {{ e }}</div>
+{% endfor %}
+{% endif %}
+
+<div class="grid3">
+  <div class="card tight"><div class="tiny dim">Accounts</div>
+    <div class="mono" style="font-size:1.2rem">{{ users_total }}</div>
+    <div class="tiny dim">{{ active_total }} active · {{ frozen_total }} frozen · {{ banned_total }} banned</div>
+  </div>
+  <div class="card tight"><div class="tiny dim">Awaiting approval</div>
+    <div class="mono" style="font-size:1.2rem; {{ 'color:var(--warn)' if queued }}">{{ queued | length }}</div>
+    <div class="tiny dim">{{ holdings.queued_withdrawals_sat | sats }} sats held</div>
+  </div>
+  <div class="card tight"><div class="tiny dim">Account gates</div>
+    <div class="mono" style="font-size:1.2rem">{{ no_2fa }}</div>
+    <div class="tiny dim">without 2FA on {{ users_total }} accounts
+      {%- if must_enrol %} · {{ must_enrol }} required to enrol{% endif %}
+      {%- if must_change %} · {{ must_change }} must change password{% endif %}
+      {%- if locked_out %} · {{ locked_out }} locked out{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card tight"><div class="tiny dim">Deposits (24h)</div>
+    <div class="mono" style="color:var(--ok)">+{{ dep_24h | sats }} sat</div></div>
+  <div class="card tight"><div class="tiny dim">Withdrawals (24h)</div>
+    <div class="mono" style="color:var(--err)">−{{ sent_24h | sats }} sat</div></div>
+</div>
+
+{% if negative %}
+<div class="card">
+  <h2>Negative balances ({{ negative | length }})</h2>
+  {% for u in negative %}
+    <a class="item" href="{{ url_for('admin.user_detail', uid=u.id) }}">
+      <span class="ico out">!</span>
+      <div class="grow">
+        <div class="t">{{ u.username }} <span class="badge neg">negative</span></div>
+        <div class="s">{{ u.status }} · last sign-in {{ u.last_login_at | timeago }}</div>
+      </div>
+      <div class="amt neg">{{ u.balance_sat | btc }} BTC</div>
+    </a>
+  {% endfor %}
+  <div class="hint">A negative balance means the account owes the wallet. Deposits settle it
+    automatically; you can also adjust it from the user page.</div>
+</div>
+{% endif %}
+
+{% if alerts %}
+<div class="card">
+  <div class="row between">
+    <h2 style="margin:0">Open alerts ({{ alerts | length }})</h2>
+    <a class="small" href="{{ url_for('admin.alerts') }}">All alerts</a>
+  </div>
+  {% for a in alerts[:6] %}
+    <div class="item">
+      <span class="ico {{ 'out' if a.severity == 'critical' else 'hold' }}">
+        {{ '!' if a.severity == 'critical' else '·' }}
+      </span>
+      <div class="grow">
+        <div class="t">{{ a.title }}</div>
+        <div class="s">{{ a.kind }} · {{ a.created_at | timeago }}{% if a.username %} · {{ a.username }}{% endif %}</div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if queued %}
+<div class="card">
+  <h2>Withdrawals waiting on you</h2>
+  {% for w in queued[:5] %}
+    <div class="item">
+      <span class="ico hold">…</span>
+      <div class="grow">
+        <div class="t">{{ w.amount_sat | btc }} BTC</div>
+        <div class="s">to {{ w.address | short(14, 6) }} · {{ w.created_at | timeago }}</div>
+      </div>
+      <div class="amt">
+        <form method="post" action="{{ url_for('admin.withdrawal_decide', wid=w.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="decision" value="approve">
+          <button class="btn sm primary" type="submit">Approve</button>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
+  <a class="btn wide mt" href="{{ url_for('admin.withdrawals') }}">Review all</a>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Newest accounts</h2>
+  {% for u in recent_users %}
+    <a class="item" href="{{ url_for('admin.user_detail', uid=u.id) }}">
+      <span class="ico {{ 'out' if u.negative_balance else 'neutral' }}">{{ u.username[0] | upper }}</span>
+      <div class="grow">
+        <div class="t">{{ u.username }}
+          {% if u.role == 'admin' %}<span class="badge admin">admin</span>{% endif %}
+          {% if u.status != 'active' %}<span class="badge {{ u.status }}">{{ u.status }}</span>{% endif %}
+        </div>
+        <div class="s">{{ u.created_at | timeago }}{% if u.signup_ip %} · {{ u.signup_ip }}{% endif %}</div>
+      </div>
+      <div class="amt">{{ u.balance_sat | btc }}</div>
+    </a>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Recent admin actions</h2>
+  {% if recent_admin %}
+    {% for a in recent_admin %}
+      <div class="item">
+        <span class="ico neutral">{{ (a.admin_username or '?')[0] | upper }}</span>
+        <div class="grow">
+          <div class="t">{{ a.action | replace('_', ' ') }}</div>
+          <div class="s">{{ a.admin_username or '—' }}
+            {% if a.target_username %} → {{ a.target_username }}{% endif %}
+            · {{ a.created_at | timeago }}</div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">No admin actions recorded yet.</div>
+  {% endif %}
+</div>
+
+<div class="btn-row">
+  <a class="btn" href="{{ url_for('admin.export_csv', what='users') }}">Export users CSV</a>
+  <a class="btn" href="{{ url_for('admin.export_csv', what='transactions') }}">Export transactions CSV</a>
+  <a class="btn" href="{{ url_for('admin.export_csv', what='ledger') }}">Export ledger CSV</a>
+</div>
+{% endblock %}

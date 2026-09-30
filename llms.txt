@@ -1,0 +1,53 @@
+# BTC Vault — documentation index
+
+> A custodial Bitcoin wallet you host yourself: Flask + gunicorn + PostgreSQL + a
+> chain watcher, in Docker Compose. Users hold balances; one shared hot wallet holds
+> the coins; a Postgres ledger says who owns what.
+
+This file follows the [llms.txt](https://llmstxt.org/) convention: a short, stable
+index of the documentation, so a model or agent can find the right file without
+crawling the repository. Everything here is descriptive documentation — the code is
+the source of truth, and the tests are the proof.
+
+## Start here
+
+- [README.md](README.md): overview, features, security summary, operations, mainnet migration, known limitations
+- [docs/architecture.md](docs/architecture.md): components, request and money flows, why it is shaped this way
+- [docs/data-model.md](docs/data-model.md): every table and column, the accounting invariant, cascades
+- [docs/operations.md](docs/operations.md): install, upgrade, backups, restore, incident runbook, routine checks
+- [docs/security.md](docs/security.md): threat model, controls, what is deliberately absent, disclosure policy
+- [docs/generated/context.md](docs/generated/context.md): generated map of all routes, models, settings and env vars
+
+## Reference
+
+- [docs/demo.md](docs/demo.md): how the GitHub Pages demo is built and deployed
+- [SECURITY.md](SECURITY.md): how to report a vulnerability
+- [.env.example](.env.example): every environment variable with a safe default
+- [llms-full.txt](llms-full.txt): this index plus the docs above, concatenated into one file
+
+## Code map
+
+- `app/__init__.py`: app factory, guards, schema drift, network-transition guard
+- `app/models.py`: data model (satoshis as integers, ledger rows, audit, alerts)
+- `app/services.py`: the money path — ledger, deposits, quotes, sends, sweeps, holdings
+- `app/btc.py`: embit — derivation, address validation, coin selection, signing, verification
+- `app/chain.py`: Esplora client (UTXOs, fees, broadcast, block height)
+- `app/sync.py`: the chain watcher loop (its own container)
+- `app/auth.py`, `app/security.py`: signup, login, 2FA, sudo re-auth, throttling, account gates
+- `app/admin.py`, `app/views.py`: admin panel and user-facing pages
+- `app/templates/`, `app/static/`: Jinja templates, one stylesheet, one progressive-enhancement script
+- `scripts/`: setup plus the verification suites listed below
+- `deploy/caddy-btc.conf`: HTTPS front end
+
+## Verification
+
+Run these against a live instance; they print pass/fail counts and exit non-zero on failure.
+
+- `scripts/verify_crypto.py`: offline — mnemonic, derivation, address validation, multi-input signing with independent ECDSA verification, fee/vsize maths, outpoint byte order
+- `scripts/mainnet_check.py`: mainnet-safe — addresses belong to this network, foreign-network address refused, fee and price feeds, books consistent, no leftovers
+- `scripts/check_admin_settings.py`: an admin without 2FA can use the panel; a settings change survives the inline password prompt and saves
+- `scripts/check_admin_user_controls.py`: account gates — require 2FA, remove 2FA, forced password change, unlock, negative-balance flag, admin exemption
+- `scripts/e2e_test.py`: full HTTP behaviour suite (creates credit — testnet only)
+- `scripts/live_chain_test.py`: end-to-end deposit and broadcast against testnet
+- `scripts/ci_smoke.py`: boots the app against a throwaway database, signs up, opens the wallet and the admin panel
+- `python -m app.cli preflight`: GO / REVIEW / NOT READY checklist for real money

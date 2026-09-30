@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Set up 2FA — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Set up two-factor authentication</h1>
+
+<div class="card">
+  <ol class="small muted" style="padding-left:1.1rem; margin:.2rem 0 0">
+    <li>Open your authenticator app.</li>
+    <li>Scan the code below, or type the setup key by hand.</li>
+    <li>Enter the 6-digit code the app shows to finish.</li>
+  </ol>
+</div>
+
+<div class="card">
+  <div class="qr-wrap"><img src="{{ qr }}" alt="2FA setup QR code" width="240" height="240"></div>
+
+  <label>Setup key (if you cannot scan)</label>
+  <div class="addr-box">
+    <span class="a">{{ secret }}</span>
+    <button class="btn sm" type="button" data-copy="{{ secret }}" data-copied-label="Copied">Copy</button>
+  </div>
+
+  <form method="post" class="mt" data-once>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="code">Code from your app</label>
+    <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code"
+           pattern="[0-9 ]{6,7}" maxlength="8" placeholder="000000" required autofocus>
+    <div class="btn-row">
+      <button class="btn primary" type="submit">Turn on 2FA</button>
+      <a class="btn ghost" href="{{ url_for('views.security') }}">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<div class="notice info">
+  Nothing changes until a code is verified, so you cannot lock yourself out by mistyping
+  the setup key.
+</div>
+{% endblock %}

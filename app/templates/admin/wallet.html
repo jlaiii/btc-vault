@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Wallet — {{ site_name }}{% endblock %}
+
+{% block content %}
+{% include "admin/_nav.html" %}
+<h1>Hot wallet</h1>
+
+{% if mismatch %}
+<div class="notice err">
+  <strong>Network mismatch:</strong> seed was created for <strong>{{ mismatch }}</strong>,
+  but the app is running on <strong>{{ network }}</strong>.
+</div>
+{% endif %}
+
+{% if error %}
+  <div class="notice err">Explorer error: {{ error }}</div>
+{% endif %}
+
+{% if holdings %}
+<div class="balance-card">
+  <div class="tiny dim">On-chain across {{ holdings.address_count }} address(es)</div>
+  <div class="balance-amount">{{ holdings.onchain_sat | btc }}<span class="unit">BTC</span></div>
+  <div class="balance-usd">{% if price %}≈ {{ holdings.onchain_sat | usd }}{% endif %}</div>
+  <div class="stat-row">
+    <div class="stat"><div class="k">Confirmed</div><div class="v" style="color:var(--ok)">{{ holdings.onchain_confirmed_sat | sats }}</div></div>
+    <div class="stat"><div class="k">Unconfirmed</div><div class="v" style="color:var(--warn)">{{ holdings.onchain_unconfirmed_sat | sats }}</div></div>
+    <div class="stat"><div class="k">User balances</div><div class="v">{{ holdings.user_ledger_sat | sats }}</div></div>
+    <div class="stat"><div class="k">Fees earned</div>
+      <div class="v" style="color:var(--ok)">{{ holdings.fees_collected_sat | sats }}</div></div>
+  </div>
+</div>
+
+<div class="notice {{ 'err' if holdings.float_shortfall > 0 else 'ok' }}">
+  {% if holdings.float_shortfall > 0 %}
+    Shortfall of {{ holdings.float_shortfall | sats }} sats — user balances exceed
+    confirmed on-chain funds. Fund the wallet or correct the affected balance.
+  {% else %}
+    Invariant holds: confirmed funds {{ holdings.onchain_confirmed_sat | sats }} sat ≥ user
+    balances {{ holdings.user_ledger_sat | sats }} sat. The difference
+    ({{ holdings.fees_collected_sat | sats }} sat) is collected service fees.
+    Only confirmed funds are treated as backing — unconfirmed outputs cannot be
+    spent and can still disappear in a reorg.
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Operations</h2>
+  <form method="post" action="{{ url_for('admin.wallet_sync') }}" data-once>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn" type="submit">Scan the chain now</button>
+  </form>
+  <div class="hint">Normally the watcher container does this every
+    {{ config.SYNC_INTERVAL_SECONDS }}s. Run it by hand after funding the wallet.</div>
+
+  <hr>
+  <h3>Recovery phrase</h3>
+  <p class="small muted" style="margin-top:0">
+    Displays the master seed for this hot wallet. Anyone with these words controls every
+    coin. Requires password confirmation, is rate limited, and is written to the audit log.
+  </p>
+  <form method="post" action="{{ url_for('admin.wallet_seed') }}"
+        data-confirm="Reveal the hot wallet recovery phrase? This will be logged.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn warn" type="submit">Reveal recovery phrase</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Derivation</h2>
+  <div class="kv">
+    <span class="k">Network</span><span class="v">{{ network }}</span>
+    <span class="k">Path</span><span class="v">m/84'/{{ '1' if network == 'testnet' else '0' }}'/0'/0/index</span>
+    <span class="k">Address type</span><span class="v">P2WPKH (native segwit, bech32)</span>
+    <span class="k">Explorers</span>
+    <span class="v">{{ config.ESPLORA_URLS | join(', ') if config.ESPLORA_URLS else 'network defaults' }}</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>All deposit addresses ({{ addresses | length }})</h2>
+  {% if addresses %}
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>#</th><th>User</th><th>Address</th><th>Label</th><th>Created</th></tr></thead>
+        <tbody>
+          {% for a in addresses %}
+            <tr>
+              <td class="mono tiny">{{ a.idx }}</td>
+              <td class="tiny">
+                {% if users_by_id.get(a.user_id) %}
+                  <a href="{{ url_for('admin.user_detail', uid=a.user_id) }}">
+                    {{ users_by_id[a.user_id].username }}</a>
+                {% else %}—{% endif %}
+              </td>
+              <td class="mono tiny" style="word-break:break-all">{{ a.address }}</td>
+              <td class="tiny dim">{{ a.label or '' }}</td>
+              <td class="tiny dim nowrap">{{ a.created_at | timeago }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty">No addresses yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

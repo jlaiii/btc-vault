@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Security — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Security</h1>
+
+{% if current_user.require_2fa and not current_user.totp_enabled %}
+  <div class="notice warn">
+    <strong>An administrator requires two-factor authentication on this account.</strong>
+    The rest of the wallet stays blocked until it is set up — the setup page below is the
+    way through. Deposits still arrive at your address as usual.
+  </div>
+{% elif current_user.require_2fa %}
+  <div class="notice info">
+    An administrator requires two-factor authentication on this account, so it cannot be
+    turned off while that is the case.
+  </div>
+{% endif %}
+
+{% if current_user.must_change_password %}
+  <div class="notice warn">
+    An administrator requires a new password on this account.
+    <a href="{{ url_for('views.force_password_change') }}">Set it now</a> — the rest of the
+    wallet is blocked until you do.
+  </div>
+{% endif %}
+
+<div class="card">
+  <h2>Two-factor authentication</h2>
+  {% if current_user.totp_enabled %}
+    <div class="row between">
+      <div>
+        <span class="pill ok">Enabled</span>
+        <div class="s muted small mt">
+          Since {{ current_user.totp_confirmed_at | fulltime }}<br>
+          Backup codes remaining: {{ codes_left }}
+        </div>
+      </div>
+    </div>
+
+    <hr>
+    <h3>Regenerate backup codes</h3>
+    <form method="post" action="{{ url_for('auth.regenerate_backup_codes') }}" data-once>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="rc-code">Authenticator code</label>
+      <input type="text" id="rc-code" name="code" inputmode="numeric" maxlength="16"
+             autocomplete="one-time-code" required>
+      <div class="btn-row">
+        <button class="btn" type="submit">Generate new backup codes</button>
+      </div>
+      <div class="hint">This replaces all existing codes. Save the new ones immediately.</div>
+    </form>
+
+    <hr>
+    <h3>Turn off 2FA</h3>
+    {% if current_user.require_2fa and not current_user.is_admin %}
+      <p class="small muted" style="margin-top:0">
+        <strong>This account is required to use 2FA by an administrator</strong>, so it
+        cannot be turned off here — the requirement has to be lifted first.
+      </p>
+    {% else %}
+    <p class="small muted" style="margin-top:0">
+      {% if current_user.is_admin %}
+        Optional for administrators, which is why this is reachable — but an admin
+        account can move money and change settings, so turning it off leaves the
+        whole wallet protected by a password alone.
+      {% else %}
+        Not recommended. Your balance is only protected by your password afterwards.
+      {% endif %}
+    </p>
+    <form method="post" action="{{ url_for('auth.disable_2fa') }}"
+          data-confirm="Turn off two-factor authentication?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="d-code">Authenticator code or a backup code</label>
+      <input type="text" id="d-code" name="code" maxlength="16" required>
+      <div class="btn-row">
+        <button class="btn danger" type="submit">Turn off 2FA</button>
+      </div>
+    </form>
+    {% endif %}
+  {% else %}
+    <p class="small muted" style="margin-top:0">
+      Add a second factor so a stolen password is not enough to reach your funds.
+      You will need an authenticator app (Google Authenticator, Authy, 1Password, Aegis…).
+    </p>
+    <div class="btn-row">
+      <a class="btn primary" href="{{ url_for('auth.setup_2fa') }}">Set up two-factor authentication</a>
+    </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Recent security activity</h2>
+  {% if events %}
+    <div class="list">
+      {% for e in events %}
+        <div class="item">
+          <span class="ico {{ 'in' if e.success else 'out' }}">{{ '✓' if e.success else '!' }}</span>
+          <div class="grow">
+            <div class="t">{{ e.kind | replace('_', ' ') | capitalize }}</div>
+            <div class="s">
+              {{ e.created_at | timeago }}
+              {% if e.ip %} · {{ e.ip }}{% endif %}
+              {% if e.detail %} · {{ e.detail | short(30, 12) }}{% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">No security events recorded yet.</div>
+  {% endif %}
+</div>
+
+<div class="card tight">
+  <div class="tiny dim">
+    Passwords are stored with Argon2id. Sessions expire after 30 minutes of inactivity, and
+    money-moving actions require your password again even while signed in.
+  </div>
+</div>
+{% endblock %}

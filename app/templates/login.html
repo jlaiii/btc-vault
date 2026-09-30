@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Sign in — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Sign in</h1>
+
+<form method="post" class="card" data-once>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <label for="username">Username</label>
+  <input type="text" id="username" name="username" value="{{ username or '' }}"
+         autocapitalize="none" autocorrect="off" spellcheck="false" required autofocus>
+
+  <label for="password">Password</label>
+  <input type="password" id="password" name="password" autocomplete="current-password" required>
+
+  <div class="btn-row">
+    <button class="btn primary" type="submit">Sign in</button>
+  </div>
+</form>
+
+<p class="small muted">
+  <a href="{{ url_for('auth.reset_request') }}">Lost your password?</a>
+  {% if signups_enabled %} · <a href="{{ url_for('auth.signup') }}">Create an account</a>{% endif %}
+</p>
+{% endblock %}

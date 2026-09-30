@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Transactions — {{ site_name }}{% endblock %}
+
+{% block content %}
+{% include "admin/_nav.html" %}
+<h1>Transactions</h1>
+
+<div class="segmented">
+  <a href="{{ url_for('admin.transactions', kind='all') }}" class="{{ 'on' if kind == 'all' }}">All</a>
+  <a href="{{ url_for('admin.transactions', kind='deposit') }}" class="{{ 'on' if kind == 'deposit' }}">Deposits</a>
+  <a href="{{ url_for('admin.transactions', kind='withdrawal') }}" class="{{ 'on' if kind == 'withdrawal' }}">Withdrawals</a>
+  <a href="{{ url_for('admin.transactions', kind='admin') }}" class="{{ 'on' if kind == 'admin' }}">Admin</a>
+</div>
+
+<form method="get" class="card tight">
+  <div class="row">
+    <input type="hidden" name="kind" value="{{ kind }}">
+    <input type="text" name="q" value="{{ q }}" class="grow"
+           placeholder="Search user, address or txid…" autocapitalize="none">
+    <button class="btn" type="submit">Search</button>
+  </div>
+</form>
+
+<div class="card tight">
+  <div class="row between">
+    <span class="muted small">{{ total }} record{{ '' if total == 1 else 's' }}</span>
+    <span class="dim tiny">page {{ page }} of {{ pages }}</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="scroll-x">
+    <table>
+      <thead><tr><th>When</th><th>User</th><th>Type</th><th>Amount</th><th>Fees</th><th>Status</th><th>Txid / address</th></tr></thead>
+      <tbody>
+        {% for t in rows %}
+          <tr>
+            <td class="tiny dim nowrap">{{ t.created_at | timeago }}</td>
+            <td><a href="{{ url_for('admin.user_detail', uid=t.user_id) }}">{{ t.user_id }}</a></td>
+            <td>{{ t.category }}</td>
+            <td class="mono {{ 'pos' if t.direction == 'in' else 'neg' }}">
+              {{ '+' if t.direction == 'in' else '−' }}{{ t.amount_sat | sats }}</td>
+            <td class="tiny dim">{{ (t.service_fee_sat + t.network_fee_sat) | sats }}</td>
+            <td>
+              {% if t.status == 'confirmed' %}<span class="pill ok">confirmed</span>
+              {% elif t.status == 'pending' %}<span class="pill pend">{{ t.confirmations }}</span>
+              {% else %}<span class="pill fail">{{ t.status }}</span>{% endif %}
+            </td>
+            <td class="tiny mono">{{ (t.txid or t.address or '') | short(10, 6) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not rows %}<div class="empty">No transactions found.</div>{% endif %}
+</div>
+
+{% if pages > 1 %}
+<div class="btn-row">
+  {% if page > 1 %}<a class="btn" href="{{ url_for('admin.transactions', kind=kind, q=q, page=page-1) }}">Previous</a>{% endif %}
+  {% if page < pages %}<a class="btn" href="{{ url_for('admin.transactions', kind=kind, q=q, page=page+1) }}">Next</a>{% endif %}
+</div>
+{% endif %}
+
+<div class="btn-row">
+  <a class="btn" href="{{ url_for('admin.export_csv', what='transactions') }}">Export CSV</a>
+</div>
+{% endblock %}

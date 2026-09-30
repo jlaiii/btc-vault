@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Send Bitcoin — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Send Bitcoin</h1>
+
+{% if not can_send %}
+  <div class="notice warn">Sending is temporarily disabled by the operator.</div>
+{% endif %}
+
+<div class="card tight">
+  <div class="row between">
+    <span class="muted small">Available</span>
+    <span class="mono">{{ user.balance_sat | btc }} BTC
+      {% if price %}<span class="dim small">≈ {{ usd_total | usd }}</span>{% endif %}
+    </span>
+  </div>
+</div>
+
+<form method="post" action="{{ url_for('views.send_quote') }}" class="card" data-once>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <label for="address">Destination address</label>
+  <input type="text" id="address" name="address" placeholder="{{ 'bc1…' if is_mainnet else 'tb1…' }}"
+         autocapitalize="none" autocorrect="off" spellcheck="false" required
+         value="{{ request.form.get('address','') }}">
+  <div class="hint">Paste the address from the wallet or exchange you are sending to.</div>
+
+  <label for="amount">Amount (BTC)</label>
+  <input type="text" id="amount" name="amount" inputmode="decimal" autocapitalize="none"
+         autocorrect="off" spellcheck="false" placeholder="0.00000000" required
+         value="{{ request.form.get('amount','') }}">
+  <div class="row between mt" style="margin-top:.35rem">
+    <span class="hint" id="amountUsd"></span>
+    <button class="btn sm ghost" type="button"
+            data-max="{{ (user.balance_sat / 100000000) | round(8) | string }}">
+      Use max
+    </button>
+  </div>
+  <div class="hint">Minimum {{ min_amount | btc }} BTC. A {{ fee_pct }}% service fee applies.</div>
+
+  <label>Network fee</label>
+  {% set flat = (rates.fast == rates.normal == rates.economy) %}
+  <div class="fees">
+    {% for key in ['fast','normal','economy'] %}
+      <label class="fee {{ 'sel' if key == 'normal' }}">
+        <input type="radio" name="priority" value="{{ key }}" {{ 'checked' if key == 'normal' }}>
+        <span class="grow">
+          <span class="n">{{ rates_meta.labels[key] }}</span>
+          <span class="d">{{ rates_meta.blurbs[key] }}</span>
+        </span>
+        <span class="r">{{ rates[key] }} sat/vB
+          {% if not flat %}<small>pay more, arrive sooner</small>{% endif %}
+        </span>
+      </label>
+    {% endfor %}
+  </div>
+  {% if flat %}
+    <div class="hint">
+      Network conditions are flat right now, so all three speeds cost the same
+      ({{ rates.normal }} sat/vB) and will confirm at the same time. Just pick one.
+    </div>
+  {% endif %}
+  {% if rates_meta.source == 'default' %}
+    <div class="hint">Live fee data is unavailable, so standard rates are shown. They are
+      usually still accepted.</div>
+  {% elif rates_meta.source == 'live+checked' %}
+    <div class="hint">Fee rates cross-checked against {{ rates_meta.providers }} independent
+      block explorers; the lower estimate is used when they disagree.</div>
+  {% endif %}
+
+  <div class="btn-row">
+    <button class="btn primary" type="submit">Review send</button>
+  </div>
+</form>
+
+<div class="card tight">
+  <div class="tiny dim">
+    You will see the exact amount, service fee and network fee before anything is sent,
+    and you must re-enter your password to confirm.
+  </div>
+</div>
+{% endblock %}

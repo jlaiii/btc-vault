@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ site_name }} — {{ 'Bitcoin testnet wallet' if not is_mainnet else 'Bitcoin wallet' }}{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <h1>Store and send Bitcoin</h1>
+  <p>A hosted Bitcoin wallet with a real deposit address, live network fees you control,
+     a full transaction history and two-factor authentication.</p>
+</div>
+
+{% if not is_mainnet %}
+  <div class="notice info">
+    This wallet is running on <strong>Bitcoin testnet</strong>. Balances are real coins on a
+    test network — perfect for trying everything out, and worth nothing on mainnet.
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="row between">
+    <div>
+      <div class="tiny dim">BTC / USD</div>
+      <div class="mono" style="font-size:1.35rem">
+        {% if price %}${{ "{:,.2f}".format(price) }}{% else %}—{% endif %}
+      </div>
+    </div>
+    <div class="right">
+      <div class="tiny dim">Network</div>
+      <div>{{ 'Mainnet' if is_mainnet else 'Testnet' }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>What you get</h2>
+  <div class="feature"><span class="fi">1</span><div>
+    <strong>Your own deposit address.</strong> Every account gets a wallet address with a QR code.
+  </div></div>
+  <div class="feature"><span class="fi">2</span><div>
+    <strong>Choose your fee.</strong> Fast, normal or economy — with the estimated cost shown
+    before you confirm.
+  </div></div>
+  <div class="feature"><span class="fi">3</span><div>
+    <strong>Real security.</strong> Argon2 password hashing, optional 2FA, session control,
+    and a password re-check before any money moves.
+  </div></div>
+  <div class="feature"><span class="fi">4</span><div>
+    <strong>Complete history.</strong> Every deposit, withdrawal and fee, with confirmations
+    and links to the blockchain.
+  </div></div>
+</div>
+
+{% if not current_user %}
+  <div class="btn-row">
+    {% if signups_enabled %}
+      <a class="btn primary" href="{{ url_for('auth.signup') }}">Create an account</a>
+    {% endif %}
+    <a class="btn" href="{{ url_for('auth.login') }}">Sign in</a>
+  </div>
+{% else %}
+  <div class="btn-row">
+    <a class="btn primary" href="{{ url_for('views.dashboard') }}">Open my wallet</a>
+  </div>
+{% endif %}
+{% endblock %}

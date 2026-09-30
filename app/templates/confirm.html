@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Confirm it is you — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Confirm it is you</h1>
+<p class="muted small">
+  Money-moving and account-changing actions require your password again, even while signed in.
+</p>
+
+<form method="post" class="card" data-once>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <label for="password">Password</label>
+  <input type="password" id="password" name="password" autocomplete="current-password"
+         required autofocus>
+
+  {% if current_user and current_user.totp_enabled %}
+    <label for="code">Authentication code</label>
+    <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code"
+           maxlength="16" placeholder="6-digit code or a backup code">
+  {% endif %}
+
+  <div class="btn-row">
+    <button class="btn primary" type="submit">Confirm</button>
+    <a class="btn ghost" href="{{ url_for('views.dashboard') }}">Cancel</a>
+  </div>
+</form>
+
+<p class="tiny dim">Confirmation lasts {{ (config.SUDO_WINDOW_SECONDS // 60) }} minutes.</p>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Settings — {{ site_name }}{% endblock %}
+
+{% block content %}
+{% include "admin/_nav.html" %}
+<h1>Settings</h1>
+
+{% if mismatch %}
+<div class="notice err">
+  Network mismatch: seed is for <strong>{{ mismatch }}</strong>, app is on
+  <strong>{{ network }}</strong>.
+</div>
+{% endif %}
+
+<div class="notice info">
+  The Bitcoin network is fixed by the <code>BTC_NETWORK</code> environment variable and is
+  intentionally not editable here: changing it would change the derivation path and address
+  format, orphaning every existing deposit address.
+</div>
+
+<form method="post" class="card" data-once>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  {% for key, label in labels.items() %}
+    {% set is_bool = key in ['signups_enabled','deposits_enabled','withdrawals_enabled','net_fee_passthrough','testnet_faucet_enabled'] %}
+    {% if is_bool %}
+      <div class="check">
+        {# An unchecked checkbox is simply absent from the POST body, so without
+           this marker the server cannot tell "turned off" from "field not
+           submitted" and the setting would refuse to switch off. #}
+        <input type="hidden" name="{{ key }}__bool" value="1">
+        <input type="checkbox" id="{{ key }}" name="{{ key }}" value="1"
+               {{ 'checked' if values[key] in ['1','true','True','on'] }}>
+        <label for="{{ key }}">
+          <strong>{{ label[0] }}</strong>
+          <div class="hint">{{ label[1] }}</div>
+        </label>
+      </div>
+    {% else %}
+      <label for="{{ key }}">{{ label[0] }}</label>
+      <input type="text" id="{{ key }}" name="{{ key }}" value="{{ values[key] }}"
+             autocapitalize="none" autocorrect="off" spellcheck="false">
+      <div class="hint">{{ label[1] }}</div>
+    {% endif %}
+  {% endfor %}
+
+  <div class="btn-row">
+    <button class="btn primary" type="submit">Save settings</button>
+  </div>
+
+  {% if need_sudo %}
+    <div class="notice warn">
+      {% if resubmitted %}
+        Nothing has been saved yet — your edits are still in the form.
+      {% else %}
+        Saving settings needs your password again.
+      {% endif %}
+      {% if twofa %}Enter your password and your current 6-digit code{% else %}Enter your password{% endif %}
+      below to save.
+    </div>
+    <label for="sudo_password">Password</label>
+    <input type="password" id="sudo_password" name="sudo_password"
+           autocomplete="current-password">
+    {% if twofa %}
+      <label for="sudo_code">Authentication code</label>
+      <input type="text" id="sudo_code" name="sudo_code" inputmode="numeric"
+             autocomplete="one-time-code" maxlength="16"
+             placeholder="6-digit code or a backup code">
+    {% endif %}
+    <div class="btn-row">
+      <button class="btn primary" type="submit">Confirm and save</button>
+    </div>
+  {% elif sudo %}
+    <div class="hint">Confirmed — changes save without asking again for
+      {{ (sudo // 60) }} more minute(s).</div>
+  {% endif %}
+</form>
+
+<div class="card">
+  <h2>Administrator security</h2>
+  <div class="row between">
+    <div>
+      <strong>Two-factor authentication</strong>
+      <div class="hint">
+        {% if twofa %}
+          Enabled — required at sign-in and for sensitive actions.
+        {% else %}
+          Not enabled. It is optional, but an admin account can move money, so it is
+          worth turning on. You get this reminder at every sign-in until it is.
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      {% if twofa %}
+        <a class="btn sm ghost" href="{{ url_for('views.security') }}">Manage</a>
+      {% else %}
+        <a class="btn sm primary" href="{{ url_for('auth.setup_2fa') }}">Enable 2FA</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card tight">
+  <div class="tiny dim">
+    Amounts are in satoshis (1 BTC = 100,000,000 sats). Current network:
+    {{ network }}. Sync interval: {{ config.SYNC_INTERVAL_SECONDS }}s.
+  </div>
+</div>
+{% endblock %}

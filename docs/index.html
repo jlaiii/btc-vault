@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<title>BTC Vault — self-hosted custodial Bitcoin wallet (interactive demo)</title>
+<meta name="description" content="Interactive, static demo of BTC Vault: a self-hosted custodial Bitcoin wallet with a full admin panel — dashboard, deposits with QR, fee-tiered sends, ledger, 2FA and account gates. Simulated data, no real bitcoin.">
+<link rel="canonical" href="https://jlaiii.github.io/btc-vault/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="BTC Vault — custodial Bitcoin wallet (demo)">
+<meta property="og:description" content="Wallet + admin panel demo. Simulated data, no backend, no real bitcoin.">
+<meta property="og:url" content="https://jlaiii.github.io/btc-vault/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f7931a'/><text x='16' y='23' font-size='20' font-family='sans-serif' font-weight='bold' text-anchor='middle' fill='%231a1000'>B</text></svg>">
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="demo.css">
+</head>
+<body class="demo">
+
+<header class="site-head">
+  <div class="inner">
+    <a class="brand-link" href="#top">
+      <span class="mark">B</span><span class="name">BTC Vault</span>
+    </a>
+    <span class="badge demo">Demo</span>
+    <nav>
+      <a href="#demo">Demo</a>
+      <a href="#how" class="hide-sm">How it works</a>
+      <a href="#run" class="hide-sm">Run it</a>
+      <a href="#docs" class="hide-sm">Docs</a>
+      <a href="https://github.com/jlaiii/btc-vault">Source</a>
+    </nav>
+  </div>
+</header>
+
+<a id="top"></a>
+<div class="wrap">
+
+  <section class="lp-hero">
+    <h1>A custodial Bitcoin wallet you host yourself.</h1>
+    <p class="lede">
+      Users sign up with a username and password, get a real BIP84 deposit address with a
+      QR code, receive and send BTC at the fee speed they choose, and see every
+      confirmation. The operator gets holdings, the ledger, withdrawal approvals, an audit
+      trail — and per-account security controls.
+    </p>
+    <div class="chips">
+      <span class="chip">Flask + gunicorn</span>
+      <span class="chip">PostgreSQL ledger</span>
+      <span class="chip">embit signing</span>
+      <span class="chip">Esplora chain data</span>
+      <span class="chip">Docker Compose</span>
+      <span class="chip">TOTP 2FA</span>
+      <span class="chip">mainnet or testnet</span>
+    </div>
+    <div class="disclaimer">
+      <strong>This page is a static demo.</strong> Every balance, address, transaction and
+      account below is invented and lives only in your browser. There is no backend, no
+      signup, and no bitcoin — nothing here can receive or move funds. The real thing is a
+      Flask + PostgreSQL service you run on your own server.
+    </div>
+    <div class="row mt2" style="gap:.6rem; flex-wrap:wrap">
+      <a class="btn primary" href="#demo">Open the demo</a>
+      <a class="btn ghost" href="https://github.com/jlaiii/btc-vault">Read the source</a>
+    </div>
+    <div class="price-note">Demo price fixed at $84,250/BTC so the numbers are stable.</div>
+  </section>
+
+  <!-- ============================ the demo ============================ -->
+  <a id="demo"></a>
+  <section class="demo-wrap">
+    <div class="frame">
+      <div class="frame-bar">
+        <span class="dots"><i></i><i></i><i></i></span>
+        <span class="url" id="url-pill">vault.local/wallet</span>
+        <button class="btn sm ghost" data-reset="1" type="button">Reset demo</button>
+      </div>
+
+      <div class="app-frame" id="app">
+        <header class="app">
+          <div class="inner">
+            <span class="brand"><span class="mark">B</span><span>BTC Vault</span></span>
+            <span class="grow"></span>
+            <span class="badge demo">Demo</span>
+          </div>
+        </header>
+
+        <main>
+          <div id="flash"></div>
+
+          <!-- ------------------------------------------------ wallet -->
+          <div class="view on" id="view-wallet">
+            <div class="balance-card">
+              <div class="tiny dim">Available balance</div>
+              <div class="balance-amount"><span id="v-balance">0</span><span class="unit">BTC</span></div>
+              <div class="balance-usd" id="v-balance-usd"></div>
+              <div class="stat-row">
+                <div class="stat"><div class="k">On-chain</div><div class="v" id="v-holdings"></div></div>
+                <div class="stat"><div class="k">Owed to users</div><div class="v" id="v-owed"></div></div>
+                <div class="stat"><div class="k">Operator fees</div><div class="v" id="v-fees"></div></div>
+              </div>
+              <div class="hint" id="v-invariant"></div>
+            </div>
+
+            <div class="notice warn">
+              <strong>1 pending deposit.</strong> 250,000 sat is waiting for 2 confirmations
+              before it is credited — an unconfirmed deposit can still disappear in a reorg.
+            </div>
+
+            <div class="card">
+              <div class="row between">
+                <h2 style="margin:0">Recent activity</h2>
+                <a class="small" href="#activity" data-go="activity">See all</a>
+              </div>
+              <div class="list" id="v-recent"></div>
+            </div>
+
+            <div class="grid2">
+              <div class="card tight">
+                <div class="tiny dim">Withdrawal limit</div>
+                <div class="mono">200,000 sat auto · above that needs approval</div>
+              </div>
+              <div class="card tight">
+                <div class="tiny dim">Service fee</div>
+                <div class="mono">0.50% · min 1,000 sat</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ------------------------------------------------ receive -->
+          <div class="view" id="view-receive">
+            <h1>Receive</h1>
+            <div class="card">
+              <div class="qr-wrap">
+                <img src="assets/demo-qr.svg" alt="Demo QR code" width="240" height="240">
+              </div>
+              <label>Your deposit address</label>
+              <div class="addr-box">
+                <span class="a" id="v-receive-address">tb1qdemoxvault0example0address0notreal00zz</span>
+                <button class="btn sm" type="button" id="v-receive-copy" data-copy="tb1qdemoxvault0example0address0notreal00zz" data-copied-label="Copied">Copy</button>
+              </div>
+              <div class="hint">Demo address — it belongs to no key and can receive nothing.</div>
+              <div class="btn-row">
+                <button class="btn ghost" id="v-receive-new" type="button">Generate another address</button>
+              </div>
+            </div>
+            <div class="card tight">
+              <div class="tiny dim">
+                Each address is derived at m/84'/coin'/0'/0/index from one master seed, so a
+                fresh address costs nothing and no two users can share a key.
+              </div>
+            </div>
+          </div>
+
+          <!-- ------------------------------------------------ send -->
+          <div class="view" id="view-send">
+            <h1>Send bitcoin</h1>
+            <div class="card">
+              <label for="v-send-address">Destination address</label>
+              <input type="text" id="v-send-address" placeholder="bc1q… or tb1q…"
+                     autocapitalize="none" autocorrect="off" spellcheck="false">
+
+              <label for="v-send-amount">Amount (BTC)</label>
+              <input type="text" id="v-send-amount" inputmode="decimal" placeholder="0.00050000">
+              <div class="hint" id="v-send-usd"></div>
+
+              <label>Fee speed</label>
+              <div class="fees">
+                <label class="fee" data-tier="fast">
+                  <input type="radio" name="tier" value="fast">
+                  <span class="grow"><span class="n">Fast</span><span class="d">next block · 12 sat/vB</span></span>
+                </label>
+                <label class="fee sel" data-tier="normal">
+                  <input type="radio" name="tier" value="normal" checked>
+                  <span class="grow"><span class="n">Normal</span><span class="d">soon · 6 sat/vB</span></span>
+                </label>
+                <label class="fee" data-tier="economy">
+                  <input type="radio" name="tier" value="economy">
+                  <span class="grow"><span class="n">Economy</span><span class="d">when it clears · 2 sat/vB</span></span>
+                </label>
+              </div>
+
+              <div id="v-send-review" class="hide"></div>
+              <div class="hint" id="v-send-review-actions" style="margin-top:.6rem"></div>
+              <div class="btn-row">
+                <button class="btn" id="v-send-quote" type="button">Review</button>
+                <button class="btn primary hide" id="v-send-confirm" type="button">Confirm and send</button>
+              </div>
+              <div class="hint">
+                In the real app this step needs your password again, and the price is held
+                server-side so a tampered form cannot change what is paid.
+              </div>
+            </div>
+          </div>
+
+          <!-- ------------------------------------------------ activity -->
+          <div class="view" id="view-activity">
+            <h1>Activity</h1>
+            <div class="btn-row" style="margin:0 0 .8rem">
+              <button class="btn sm primary" data-filter="all" type="button">All</button>
+              <button class="btn sm ghost" data-filter="in" type="button">Received</button>
+              <button class="btn sm ghost" data-filter="out" type="button">Sent</button>
+            </div>
+            <div class="card">
+              <div class="list" id="v-activity"></div>
+            </div>
+            <div class="card tight">
+              <div class="tiny dim">
+                Every row is backed by a ledger entry with the balance after it, so the
+                history explains itself — including admin credits and fees.
+              </div>
+            </div>
+          </div>
+
+          <!-- ------------------------------------------------ security -->
+          <div class="view" id="view-security">
+            <h1>Security</h1>
+            <div class="card">
+              <div class="row between">
+                <div>
+                  <h2 style="margin:0">Two-factor authentication</h2>
+                  <div class="small muted" id="v-2fa-state"></div>
+                </div>
+              </div>
+              <p class="small muted" id="v-2fa-detail"></p>
+              <div class="btn-row">
+                <button class="btn primary" id="v-2fa-action" data-2fa="1" type="button">Set up two-factor authentication</button>
+              </div>
+              <div class="hint">
+                TOTP with ±1 window, replay protection and 10 single-use backup codes.
+                Optional by design — including for administrators.
+              </div>
+            </div>
+            <div class="card">
+              <h2>Recent security activity</h2>
+              <div class="list" id="v-logins"></div>
+            </div>
+          </div>
+
+          <!-- ------------------------------------------------ account -->
+          <div class="view" id="view-account">
+            <h1>Account</h1>
+            <div class="card">
+              <div class="kv">
+                <span class="k">Username</span><span class="v">maria_g</span>
+                <span class="k">Balance</span><span class="v">0.04125000 BTC</span>
+                <span class="k">Member since</span><span class="v">September 21, 2026</span>
+                <span class="k">Status</span><span class="v">active</span>
+              </div>
+            </div>
+            <div class="card">
+              <h2>Change password</h2>
+              <p class="small muted" style="margin-top:0">
+                Accounts are username + password only — no email is collected anywhere, so
+                there is no self-service reset. An administrator sets a new password.
+              </p>
+              <label>Current password</label><input type="password" placeholder="••••••••••">
+              <label>New password</label><input type="password" placeholder="••••••••••">
+              <div class="btn-row"><button class="btn primary" data-signup="1" type="button">Change password</button></div>
+            </div>
+            <div class="card">
+              <h2>Sessions</h2>
+              <div class="btn-row" style="margin-top:0">
+                <button class="btn" data-signup="1" type="button">Sign out other devices</button>
+                <button class="btn danger" data-signup="1" type="button">Sign out everywhere</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ------------------------------------------------ admin -->
+          <div class="view" id="view-admin">
+            <div class="segmented">
+              <a href="#admin" data-admin-tab="overview" class="on">Overview</a>
+              <a href="#admin" data-admin-tab="users">Users</a>
+              <a href="#admin" data-admin-tab="user">Account controls</a>
+              <a href="#admin" data-admin-tab="wallet">Wallet</a>
+              <a href="#admin" data-admin-tab="settings">Settings</a>
+            </div>
+
+            <div class="admin-pane" id="admin-overview">
+              <h1>Holdings</h1>
+              <div class="grid3">
+                <div class="card tight"><div class="tiny dim">On-chain</div>
+                  <div class="mono" id="a-onchain"></div></div>
+                <div class="card tight"><div class="tiny dim">Owed to users</div>
+                  <div class="mono" id="a-owed"></div></div>
+                <div class="card tight"><div class="tiny dim">Operator fees</div>
+                  <div class="mono" id="a-fees"></div></div>
+              </div>
+              <div class="card tight"><div class="hint" id="a-invariant"></div></div>
+              <div class="grid2">
+                <div class="card tight"><div class="tiny dim">Accounts</div>
+                  <div class="mono" style="font-size:1.2rem" id="a-accounts"></div></div>
+                <div class="card tight"><div class="tiny dim">Account gates</div>
+                  <div class="mono" style="font-size:1.2rem" id="a-gates"></div>
+                  <div class="tiny dim" id="a-gate-sub"></div></div>
+              </div>
+              <div class="card">
+                <h2>Withdrawals waiting for approval</h2>
+                <div class="list" id="a-queue"></div>
+              </div>
+            </div>
+
+            <div class="admin-pane hide" id="admin-users">
+              <h1>Users</h1>
+              <div class="card tight">
+                <div class="row wrap">
+                  <input type="text" placeholder="Search username…" class="grow" style="min-width:160px">
+                  <select id="a-filter" style="width:auto">
+                    <option value="all">No filter</option>
+                    <option value="no2fa">2FA not enabled</option>
+                    <option value="require2fa">2FA required</option>
+                    <option value="pending2fa">2FA required, not enrolled</option>
+                    <option value="mustchange">Password change required</option>
+                    <option value="locked">Locked out</option>
+                  </select>
+                </div>
+              </div>
+              <div class="card"><div class="list" id="a-users"></div></div>
+            </div>
+
+            <div class="admin-pane hide" id="admin-user">
+              <div class="row between">
+                <h1 style="margin:0" id="a-user-name">maria_g</h1>
+                <button class="btn sm ghost" data-admin-tab="users" type="button">All users</button>
+              </div>
+              <div class="row wrap" style="gap:.35rem; margin:.4rem 0 .9rem" id="a-user-badges"></div>
+
+              <div class="grid2">
+                <div class="card tight">
+                  <div class="tiny dim">Balance</div>
+                  <div class="mono" style="font-size:1.3rem"><span id="a-user-balance"></span> BTC</div>
+                </div>
+                <div class="card tight">
+                  <div class="tiny dim">Next request from this account</div>
+                  <div class="small" id="a-user-gate"></div>
+                </div>
+              </div>
+
+              <div class="card">
+                <h2>Account</h2>
+                <div class="kv" id="a-user-flags"></div>
+              </div>
+
+              <div class="card">
+                <h2>Security &amp; access</h2>
+                <p class="small muted" style="margin-top:0">
+                  These are the gates that came out of running this wallet for real. Press
+                  them — the badges above, the wall below and the user's own experience all
+                  change.
+                </p>
+                <div id="a-user-controls"></div>
+              </div>
+
+              <div class="card tight">
+                <div class="tiny dim">
+                  Admins are exempt from both gates on purpose: forcing 2FA or a password
+                  change on the operator locks them out of the panel that toggles it.
+                </div>
+              </div>
+            </div>
+
+            <div class="admin-pane hide" id="admin-wallet">
+              <h1>Wallet</h1>
+              <div class="card">
+                <h2>Deposit addresses</h2>
+                <div class="list">
+                  <div class="item"><span class="ico neutral">1</span>
+                    <div class="grow"><div class="mono small">tb1qyou…4f9c2a · m/84'/0'/0/0/3</div>
+                      <div class="s">primary · created 6 days ago</div></div></div>
+                  <div class="item"><span class="ico neutral">2</span>
+                    <div class="grow"><div class="mono small">tb1qmaria…1a7d3e · m/84'/0'/0/0/4</div>
+                      <div class="s">created 2 hours ago</div></div></div>
+                </div>
+                <div class="btn-row">
+                  <button class="btn" data-signup="1" type="button">Scan chain now</button>
+                  <button class="btn warn" data-signup="1" type="button">Reveal recovery phrase</button>
+                </div>
+                <div class="hint">
+                  The phrase is the one thing that cannot be recovered: it is stored
+                  AES-256-GCM encrypted under a master key that lives outside the database,
+                  and revealing it needs a password, a 2FA code and is rate limited.
+                </div>
+              </div>
+            </div>
+
+            <div class="admin-pane hide" id="admin-settings">
+              <h1>Settings</h1>
+              <div class="card">
+                <label>Service fee (%)</label><input type="text" value="0.5">
+                <label>Minimum service fee (sats)</label><input type="text" value="1000">
+                <label>Auto-send limit (sats)</label><input type="text" value="200000">
+                <label>Minimum withdrawal (sats)</label><input type="text" value="10000">
+                <label>Deposit confirmations</label><input type="text" value="2">
+                <div class="check">
+                  <input type="checkbox" checked><label>Signups open</label>
+                </div>
+                <div class="check">
+                  <input type="checkbox" checked><label>Deposits enabled</label>
+                </div>
+                <div class="check">
+                  <input type="checkbox" checked><label>Withdrawals enabled</label>
+                </div>
+                <div class="check">
+                  <input type="checkbox"><label>Charge miner fee to user</label>
+                </div>
+                <div class="btn-row">
+                  <button class="btn primary" data-signup="1" type="button">Save settings</button>
+                </div>
+                <div class="hint">
+                  Saving requires your password again, entered on this page — a POST is
+                  never bounced to a separate confirmation screen, because the redirect
+                  would come back as a GET and the edit would silently vanish.
+                </div>
+              </div>
+            </div>
+            <div class="sim-note">Static screens — Wallet and Settings are not interactive in the demo.</div>
+          </div>
+        </main>
+
+        <nav class="tabs">
+          <div class="inner">
+            <a href="#wallet" data-go="wallet" class="on">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+              Wallet
+            </a>
+            <a href="#receive" data-go="receive">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v13"/><path d="M6.5 11 12 16.5 17.5 11"/><path d="M4 20h16"/></svg>
+              Receive
+            </a>
+            <a href="#send" data-go="send">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21V8"/><path d="M6.5 13 12 7.5 17.5 13"/><path d="M4 4h16"/></svg>
+              Send
+            </a>
+            <a href="#activity" data-go="activity">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+              Activity
+            </a>
+            <a href="#security" data-go="security">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/></svg>
+              Security
+            </a>
+            <a href="#account" data-go="account">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="3.4"/><path d="M5 21c0-3.6 3-6 7-6s7 2.4 7 6"/></svg>
+              Account
+            </a>
+            <a href="#admin" data-go="admin">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/></svg>
+              Admin
+            </a>
+          </div>
+        </nav>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ how it works ============================ -->
+  <a id="how"></a>
+  <section class="section">
+    <h2>What the demo actually shows</h2>
+    <p class="sub">
+      Each screen above is a static mirror of a real template, so what you click is what
+      the app renders. Simulated data; the code behind it is not simulated.
+    </p>
+    <div class="cols">
+      <div class="box">
+        <h3>Wallet &amp; deposits</h3>
+        <ul>
+          <li>Balance card with on-chain total, what is owed to users and operator fees</li>
+          <li>Pending deposits stay uncredited until the confirmation count is met</li>
+          <li>One derivation index per address from a single BIP39 seed (BIP84, native segwit)</li>
+        </ul>
+        <p class="tiny dim">app/templates/dashboard.html · receive.html · app/services.py</p>
+      </div>
+      <div class="box">
+        <h3>Sends with a real fee model</h3>
+        <ul>
+          <li>Fast / Normal / Economy priced from live mempool data, cross-checked between two explorers</li>
+          <li>Quote is stored server-side; the browser only ever returns a quote id</li>
+          <li>Debit = amount + service fee + <em>actual</em> miner fee from the signed transaction</li>
+        </ul>
+        <p class="tiny dim">app/templates/send.html · send_review.html · app/services.py</p>
+      </div>
+      <div class="box">
+        <h3>Ledger that survives an operator</h3>
+        <ul>
+          <li>Append-only ledger rows with <code>delta_sat</code> and <code>balance_after_sat</code></li>
+          <li>Deposits credited once, guarded by a unique <code>(txid, vout)</code></li>
+          <li>Invariant shown on the dashboard: on-chain − owed = operator revenue</li>
+        </ul>
+        <p class="tiny dim">app/models.py · app/services.py</p>
+      </div>
+      <div class="box">
+        <h3>Account gates (Admin → Account controls)</h3>
+        <ul>
+          <li><strong>Require 2FA</strong> — the account is blocked until it enrols, including sessions already open</li>
+          <li><strong>Remove 2FA</strong> for a lost phone and lost backup codes</li>
+          <li><strong>Require a new password</strong> — next request lands on the change page</li>
+          <li><strong>Unlock</strong> a locked-out account, <strong>clear</strong> a stale negative-balance flag</li>
+          <li>Confirmed inline on the card: the button you press is the one that runs</li>
+        </ul>
+        <p class="tiny dim">app/admin.py · app/security.py · app/templates/admin/user_detail.html</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Money handling, in one screen</h2>
+    <p class="sub">
+      A custodial balance is a ledger claim on coins sitting in one shared hot wallet.
+      Everything here exists to keep that claim honest.
+    </p>
+    <div class="cols">
+      <div class="box">
+        <h3>Integers only</h3>
+        <p>
+          Every amount is an integer number of satoshis. There is no float in the money
+          path — not for fees, not for parsing, not for storage. USD is display only.
+        </p>
+      </div>
+      <div class="box">
+        <h3>Nothing evaporates</h3>
+        <p>
+          Deleting an account sweeps its balance onto an admin account first; if the sweep
+          fails the delete is abandoned. A negative balance transfers as debt rather than
+          being silently zeroed.
+        </p>
+      </div>
+      <div class="box">
+        <h3>Nothing double-credits</h3>
+        <p>
+          Chain credits are keyed on <code>(txid, vout)</code>, and the wallet marks its own
+          broadcasts before sending, so its change outputs can never be re-read as fresh
+          deposits.
+        </p>
+      </div>
+      <div class="box">
+        <h3>Nothing silent</h3>
+        <p>
+          A cross-network address is <em>refused</em>, a signature is re-verified against
+          the exact bytes about to be broadcast, and a broadcast failure refunds and raises
+          an alert instead of swallowing the error.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ run it ============================ -->
+  <a id="run"></a>
+  <section class="section">
+    <h2>Run your own</h2>
+    <p class="sub">
+      One host, Docker, and a domain or IP with TLS. Testnet is the default — start there.
+    </p>
+    <pre><span class="c"># clone and bootstrap (writes .env, secrets/master.key, a recovery phrase file and an admin)</span>
+git clone https://github.com/jlaiii/btc-vault.git
+cd btc-vault
+./scripts/setup.sh
+
+<span class="c"># bring it up</span>
+docker compose up -d --build
+
+<span class="c"># is it ready for real money? PASS / REVIEW / NOT READY, exit code non-zero while blocked</span>
+docker compose exec web python -m app.cli preflight
+
+<span class="c"># the suites that prove behaviour (they print pass/fail counts)</span>
+docker compose exec -T web python /app/scripts/verify_crypto.py
+docker compose exec -T web python /app/scripts/mainnet_check.py
+docker compose exec -T web python /app/scripts/check_admin_user_controls.py</pre>
+    <div class="cols" style="margin-top:1rem">
+      <div class="box">
+        <h3>Before mainnet</h3>
+        <ul>
+          <li>Write the 24-word recovery phrase on paper and delete the file</li>
+          <li>2FA on the admin account, and change the setup password</li>
+          <li>Switch networks with <code>cli launch-network</code> — it is a data migration, not a config toggle</li>
+          <li>Check the legal side: custodying other people's bitcoin is money transmission in the US</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>Known limits (honest ones)</h3>
+        <ul>
+          <li>Single hot wallet — no cold storage or multisig</li>
+          <li>One gunicorn worker: simple, and fine for a small pilot, not for load</li>
+          <li>No self-service password reset (no email is collected at all)</li>
+          <li>An operator with database access can adjust a balance; the audit log is the control</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ docs ============================ -->
+  <a id="docs"></a>
+  <section class="section">
+    <h2>Docs and code</h2>
+    <p class="sub">Written to be read by people and by agents working on the codebase.</p>
+    <div class="mapwrap">
+      <table class="map">
+        <tbody>
+          <tr><td><a href="https://github.com/jlaiii/btc-vault#readme">README.md</a></td>
+              <td>features, security summary, operations, mainnet migration, limitations</td></tr>
+          <tr><td><a href="https://github.com/jlaiii/btc-vault/blob/main/docs/architecture.md">docs/architecture.md</a></td>
+              <td>components, request and money flows, why it is shaped this way</td></tr>
+          <tr><td><a href="https://github.com/jlaiii/btc-vault/blob/main/docs/data-model.md">docs/data-model.md</a></td>
+              <td>every table and column, the accounting invariant, cascades</td></tr>
+          <tr><td><a href="https://github.com/jlaiii/btc-vault/blob/main/docs/security.md">docs/security.md</a></td>
+              <td>threat model, controls, what is deliberately absent</td></tr>
+          <tr><td><a href="https://github.com/jlaiii/btc-vault/blob/main/docs/operations.md">docs/operations.md</a></td>
+              <td>install, upgrade, backups, restore, incident runbook</td></tr>
+          <tr><td><a href="https://github.com/jlaiii/btc-vault/blob/main/docs/generated/context.md">docs/generated/context.md</a></td>
+              <td>generated map of every route, model, setting and env var</td></tr>
+          <tr><td><a href="https://github.com/jlaiii/btc-vault/blob/main/llms.txt">llms.txt</a></td>
+              <td>documentation index for models and agents</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="site">
+    <div class="row">
+      <span>BTC Vault — self-hosted custodial Bitcoin wallet. MIT licensed.</span>
+      <a href="https://github.com/jlaiii/btc-vault">github.com/jlaiii/btc-vault</a>
+    </div>
+    <p class="tiny" style="margin-top:.7rem">
+      This page is a demonstration. It is not a service, it accepts no signups, and it can
+      neither receive nor send bitcoin. Amounts, addresses, accounts and transactions are
+      invented for illustration; the demo price is fixed so the numbers do not drift.
+    </p>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="demo.js" defer></script>
+</body>
+</html>

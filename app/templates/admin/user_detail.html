@@ -1,0 +1,504 @@
+{% extends "base.html" %}
+{% block title %}{{ target.username }} — {{ site_name }}{% endblock %}
+
+{% block content %}
+{% include "admin/_nav.html" %}
+
+<div class="row between">
+  <h1 style="margin:0">{{ target.username }}</h1>
+  <a class="btn sm ghost" href="{{ url_for('admin.users') }}">All users</a>
+</div>
+
+{% if target.negative_balance %}
+  <div class="notice err">
+    <strong>Negative balance.</strong> This account owes the wallet
+    {{ (-target.balance_sat) | btc }} BTC.
+  </div>
+{% endif %}
+{% if target.is_banned %}
+  <div class="notice err">This account is banned — it cannot sign in.</div>
+{% elif target.is_frozen %}
+  <div class="notice warn">Frozen — can sign in and deposit, cannot send or withdraw.</div>
+{% endif %}
+
+{% if not sudo %}
+  <div class="notice info">Sensitive actions below need a fresh password confirmation.</div>
+{% endif %}
+
+<div class="grid2">
+  <div class="card tight">
+    <div class="tiny dim">Balance</div>
+    <div class="mono" style="font-size:1.3rem">{{ target.balance_sat | btc }} BTC</div>
+    <div class="tiny dim">{{ target.balance_sat | sats }} sats
+      {% if price %}· ≈ {{ target.balance_sat | usd }}{% endif %}</div>
+  </div>
+  <div class="card tight">
+    <div class="tiny dim">On-chain control</div>
+    {% if utxo_error %}
+      <div class="small" style="color:var(--warn)">Explorer error</div>
+    {% elif utxos %}
+      <div class="mono" style="font-size:1.3rem">
+        {% set total = utxos | sum(attribute='value_sat') %}{{ total | btc }} BTC</div>
+      <div class="tiny dim">{{ utxos | length }} UTXO(s) across {{ target.addresses | length }} address(es)</div>
+    {% else %}
+      <div class="mono" style="font-size:1.3rem">0</div>
+      <div class="tiny dim">no on-chain funds</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Account</h2>
+  <div class="kv">
+    <span class="k">Username</span><span class="v">{{ target.username }}</span>
+    <span class="k">Role</span><span class="v">{{ target.role }}</span>
+    <span class="k">Status</span><span class="v">{{ target.status }}</span>
+    <span class="k">2FA</span>
+    <span class="v">{{ 'enabled since ' ~ (target.totp_confirmed_at | fulltime) if target.totp_enabled else 'not enabled' }}</span>
+    <span class="k">2FA required</span>
+    <span class="v">{{ 'yes' if target.require_2fa else 'no' }}</span>
+    <span class="k">Password change</span>
+    <span class="v">{{ 'required' if target.must_change_password else 'not required' }}</span>
+    <span class="k">Created</span><span class="v">{{ target.created_at | fulltime }}</span>
+    <span class="k">Signup IP</span><span class="v">{{ target.signup_ip or '—' }}</span>
+    <span class="k">Last sign-in</span><span class="v">{{ target.last_login_at | fulltime }}</span>
+    <span class="k">Last IP</span><span class="v">{{ target.last_login_ip or '—' }}</span>
+    <span class="k">Failed logins</span><span class="v">{{ target.failed_logins }}</span>
+    <span class="k">Locked until</span><span class="v">{{ target.locked_until | fulltime if target.locked_until else '—' }}</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Wallets</h2>
+  {% if target.addresses %}
+    <div class="list">
+      {% for a in target.addresses %}
+        <div class="item">
+          <span class="ico neutral">{{ loop.index }}</span>
+          <div class="grow">
+            <div class="mono small" style="word-break:break-all">{{ a.address }}</div>
+            <div class="s">m/84'/{{ '1' if not is_mainnet else '0' }}'/0'/0/{{ a.idx }}
+              · {{ a.created_at | timeago }}</div>
+          </div>
+          <button class="btn sm ghost" type="button" data-copy="{{ a.address }}"
+                  data-copied-label="Copied">Copy</button>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">No wallet addresses (creation may have failed at signup).</div>
+  {% endif %}
+  {% if utxos %}
+    <hr>
+    <h3>Unspent outputs</h3>
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>Outpoint</th><th>Value</th><th>Confirmed</th></tr></thead>
+        <tbody>
+          {% for u in utxos %}
+            <tr>
+              <td class="mono tiny">{{ u.txid | short(12, 6) }}:{{ u.vout }}</td>
+              <td class="mono">{{ u.value_sat | sats }}</td>
+              <td>{{ 'yes' if u.confirmed else 'no' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Adjust balance</h2>
+  <p class="small muted" style="margin-top:0">
+    Every change is written to the ledger and the audit log. Setting a balance below zero is
+    allowed, but it flags the account and raises a critical alert.
+  </p>
+  <form method="post" action="{{ url_for('admin.user_balance', uid=target.id) }}" data-once>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="row wrap">
+      <select name="mode" style="width:auto">
+        <option value="set">Set balance to</option>
+        <option value="credit">Credit by</option>
+        <option value="debit">Debit by</option>
+      </select>
+      <input type="text" name="amount" class="grow" placeholder="0.00100000"
+             inputmode="decimal" style="min-width:140px">
+    </div>
+    <label for="note">Reason / note</label>
+    <input type="text" id="note" name="note" maxlength="300"
+           placeholder="e.g. goodwill credit, deposit correction">
+    <div class="check">
+      <input type="checkbox" id="allow_negative" name="allow_negative" value="1">
+      <label for="allow_negative">Allow a negative balance (only applies to “set balance”)</label>
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" type="submit">Apply balance change</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Account controls</h2>
+  <div class="btn-row">
+    {% if target.status == 'active' %}
+      <form method="post" action="{{ url_for('admin.user_status', uid=target.id) }}" data-once>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="freeze">
+        <input type="hidden" name="reason" value="frozen from admin panel">
+        <button class="btn warn" type="submit">Freeze account</button>
+      </form>
+    {% else %}
+      <form method="post" action="{{ url_for('admin.user_status', uid=target.id) }}" data-once>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="unfreeze">
+        <button class="btn" type="submit">Unfreeze</button>
+      </form>
+    {% endif %}
+
+    {% if target.status != 'banned' %}
+      <form method="post" action="{{ url_for('admin.user_status', uid=target.id) }}"
+            data-confirm="Ban {{ target.username }}? They will be signed out immediately.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="ban">
+        <button class="btn danger" type="submit">Ban account</button>
+      </form>
+    {% else %}
+      <form method="post" action="{{ url_for('admin.user_status', uid=target.id) }}" data-once>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="unban">
+        <button class="btn" type="submit">Unban</button>
+      </form>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('admin.user_status', uid=target.id) }}" data-once>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="force_logout">
+      <button class="btn" type="submit">Sign out everywhere</button>
+    </form>
+  </div>
+
+  <hr>
+
+  <h3 class="mt">Set password</h3>
+  <p class="small muted" style="margin-top:.2rem">
+    Signs them out of every device. You will see the password once, so hand it over
+    immediately through a channel you trust.
+  </p>
+  <form method="post" action="{{ url_for('admin.user_password', uid=target.id) }}"
+        data-confirm="Set a new password for {{ target.username }} and sign them out everywhere?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="mode" value="generate">
+    <button class="btn warn" type="submit">Generate one for them</button>
+  </form>
+  <form method="post" action="{{ url_for('admin.user_password', uid=target.id) }}"
+        class="mt" data-confirm="Set this exact password for {{ target.username }}?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="mode" value="set">
+    <label for="newpw">Choose a password</label>
+    <input type="password" id="newpw" name="password" autocomplete="new-password"
+           minlength="{{ config.PASSWORD_MIN_LENGTH }}" required>
+    <input type="password" name="password2" autocomplete="new-password"
+           placeholder="Repeat it" required>
+    <div class="hint">
+      At least {{ config.PASSWORD_MIN_LENGTH }} characters, mixing upper and lower case,
+      numbers or symbols. It cannot contain their username.
+    </div>
+    <div class="btn-row">
+      <button class="btn danger" type="submit">Set this password</button>
+    </div>
+  </form>
+
+  {% if target.role == 'user' %}
+    <form method="post" action="{{ url_for('admin.user_role', uid=target.id) }}" class="mt"
+          data-confirm="Give {{ target.username }} full admin access?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="role" value="admin">
+      <button class="btn" type="submit">Promote to admin</button>
+    </form>
+  {% elif target.id != current_user.id %}
+    <form method="post" action="{{ url_for('admin.user_role', uid=target.id) }}" class="mt"
+          data-confirm="Remove admin rights from {{ target.username }}?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="role" value="user">
+      <button class="btn" type="submit">Demote to user</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="card" id="security">
+  <h2>Security &amp; access</h2>
+
+  <div class="row wrap" style="gap:.35rem">
+    {% if target.totp_enabled %}<span class="pill ok">2FA on</span>
+    {% else %}<span class="pill fail">2FA off</span>{% endif %}
+    {% if target.require_2fa %}<span class="pill info">2FA required</span>{% endif %}
+    {% if target.must_change_password %}<span class="pill pend">new password required</span>{% endif %}
+    {% if target.is_locked_out %}<span class="pill fail">locked out</span>{% endif %}
+    {% if target.negative_balance %}<span class="pill fail">negative balance</span>{% endif %}
+    {% if target.status == 'frozen' %}<span class="pill pend">frozen</span>{% endif %}
+    {% if target.status == 'banned' %}<span class="pill fail">banned</span>{% endif %}
+  </div>
+
+  <form method="post" action="{{ url_for('admin.user_security', uid=target.id) }}" class="mt"
+        data-once>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {% if sudo %}
+      <div class="hint">Confirmed — the buttons below apply straight away
+        ({{ (sudo // 60) + 1 }} minute window).</div>
+    {% else %}
+      <div class="notice warn">
+        Type your password here <strong>and then click the action</strong>. Your
+        confirmation is checked on this card, so the button you pressed is the one that
+        runs — nothing gets bounced to another page and lost.
+        {% if current_user.totp_enabled %}Your current 6-digit code goes with it.{% endif %}
+      </div>
+      <label for="sec_sudo">Your password</label>
+      <input type="password" id="sec_sudo" name="sudo_password" autocomplete="current-password">
+      {% if current_user.totp_enabled %}
+        <label for="sec_code">Authentication code</label>
+        <input type="text" id="sec_code" name="sudo_code" inputmode="numeric"
+               autocomplete="one-time-code" maxlength="16"
+               placeholder="6-digit code or a backup code">
+      {% endif %}
+    {% endif %}
+
+    {% if target.is_admin %}
+      <div class="notice info" style="margin-top:1rem">
+        <strong>Administrator account — exempt from these gates.</strong>
+        Requiring 2FA or a password change means the account cannot reach this panel until
+        it complies, so forcing either on an operator locks them out of the switch that
+        turns it off. Manage your own 2FA in
+        <a href="{{ url_for('views.security') }}">Account &rarr; Security</a>; lockout and
+        balance-flag housekeeping below still applies.
+      </div>
+    {% else %}
+
+      <h3>Two-factor authentication</h3>
+      <p class="small muted" style="margin-top:0">
+        {% if target.require_2fa %}
+          <strong>Required on this account.</strong> Until {{ target.username }} enrols,
+          every page except the setup page is blocked — deposits still land, they just
+          cannot get into the wallet.
+        {% else %}
+          Optional for this account, exactly as it is everywhere else. Requiring it means
+          the account is gated until an authenticator is set up.
+        {% endif %}
+      </p>
+      <div class="btn-row">
+        {% if target.require_2fa %}
+          <button class="btn" type="submit" name="action" value="require_2fa_off"
+                  data-confirm="Stop requiring 2FA for {{ target.username }}? They keep 2FA if they are already enrolled.">
+            Stop requiring 2FA</button>
+        {% else %}
+          <button class="btn primary" type="submit" name="action" value="require_2fa_on"
+                  data-confirm="Require 2FA on {{ target.username }}? Every request from them will be blocked until they enrol an authenticator.">
+            Require 2FA</button>
+        {% endif %}
+        {% if target.totp_enabled %}
+          <button class="btn warn" type="submit" name="action" value="clear_2fa"
+                  data-confirm="Clear {{ target.username }}'s 2FA? Use this when they have lost the authenticator and their backup codes.">
+            Remove 2FA (lost device)</button>
+        {% endif %}
+      </div>
+
+      <hr>
+
+      <h3>Password</h3>
+      <p class="small muted" style="margin-top:0">
+        {% if target.must_change_password %}
+          <strong>Required.</strong> Their next request lands on a change-password page.
+          Their balance and history are untouched, and the new password is their own —
+          you never see it.
+        {% else %}
+          Force a new password at their next sign-in. Useful after a temporary password
+          was handed over, or if the password may have been exposed.
+        {% endif %}
+      </p>
+      <div class="btn-row">
+        {% if target.must_change_password %}
+          <button class="btn" type="submit" name="action" value="require_password_off">Stop requiring a new password</button>
+        {% else %}
+          <button class="btn primary" type="submit" name="action" value="require_password_on"
+                  data-confirm="Require {{ target.username }} to set a new password before they can use the wallet again?">
+            Require a new password</button>
+        {% endif %}
+      </div>
+
+    {% endif %}
+
+    <hr>
+
+    <h3>Lockout &amp; flags</h3>
+    <p class="small muted" style="margin-top:0">
+      Clearing a lockout lets them sign in again straight away instead of waiting out the
+      timer — their password is unchanged. The negative-balance flag can only be cleared
+      once the balance really is zero or positive again.
+    </p>
+    <div class="btn-row">
+      <button class="btn" type="submit" name="action" value="unlock">
+        {{ 'Unlock account' if target.is_locked_out else 'Clear failed-attempt counter' }}</button>
+      {% if target.negative_balance %}
+        <button class="btn warn" type="submit" name="action" value="clear_negative"
+                data-confirm="Clear the negative-balance flag on {{ target.username }}? The alert stays open.">
+          Clear negative-balance flag</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+{% if target.id != current_user.id %}
+<div class="card">
+  <h2>Move balance out</h2>
+  <div class="notice info" style="margin-top:0">
+    Moves {{ target.username }}'s entire ledger balance onto an administrator account.
+    Nothing moves on-chain — the BTC is already in the wallet. This exists so value is
+    never stranded or destroyed; it also runs automatically when the account is deleted.
+  </div>
+  <form method="post" action="{{ url_for('admin.user_sweep', uid=target.id) }}"
+        data-confirm="Move {{ target.balance_sat | btc }} BTC out of {{ target.username }}?">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="sweep_recipient">Destination</label>
+    <select id="sweep_recipient" name="recipient" required>
+      {% for a in admins %}
+        <option value="{{ a.id }}" {{ 'selected' if a.id == current_user.id }}>
+          {{ a.username }}{{ ' (you)' if a.id == current_user.id }}
+        </option>
+      {% endfor %}
+    </select>
+    <div class="btn-row">
+      <button class="btn warn" type="submit">Move
+        {{ target.balance_sat | btc }} BTC to this account</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Delete account</h2>
+  <div class="notice err" style="margin-top:0">
+    Permanent. Their deposit addresses disappear, so any coins later sent to them cannot be
+    attributed.
+    {% if target.balance_sat != 0 %}
+      <strong>Their {{ target.balance_sat | btc }} BTC balance will be moved to the
+      account you pick below first — nothing is lost.</strong>
+    {% else %}
+      The balance is already zero, so nothing needs moving.
+    {% endif %}
+  </div>
+  <form method="post" action="{{ url_for('admin.user_delete', uid=target.id) }}"
+        data-confirm="Permanently delete {{ target.username }}? This cannot be undone.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="confirm">Type <code>{{ target.username }}</code> to confirm</label>
+    <input type="text" id="confirm" name="confirm" autocomplete="off" required>
+    <label for="del_recipient">Balance goes to</label>
+    <select id="del_recipient" name="recipient" required>
+      {% for a in admins %}
+        <option value="{{ a.id }}" {{ 'selected' if a.id == current_user.id }}>
+          {{ a.username }}{{ ' (you)' if a.id == current_user.id }}
+        </option>
+      {% endfor %}
+    </select>
+    <div class="btn-row">
+      <button class="btn danger" type="submit">Delete this account</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Private notes</h2>
+  <form method="post" action="{{ url_for('admin.user_notes', uid=target.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <textarea name="notes" maxlength="4000" placeholder="Visible to admins only">{{ target.notes or '' }}</textarea>
+    <div class="btn-row"><button class="btn" type="submit">Save notes</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Ledger</h2>
+  <div class="scroll-x">
+    <table>
+      <thead><tr><th>When</th><th>Kind</th><th>Change</th><th>Balance after</th><th>Note</th></tr></thead>
+      <tbody>
+        {% for e in ledger %}
+          <tr>
+            <td class="tiny dim nowrap">{{ e.created_at | timeago }}</td>
+            <td>{{ e.kind }}</td>
+            <td class="mono {{ 'amt pos' if e.delta_sat > 0 else 'neg' }}">{{ e.delta_sat | sats }}</td>
+            <td class="mono">{{ e.balance_after_sat | sats }}</td>
+            <td class="tiny dim">{{ (e.note or '') | short(28, 10) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Transactions</h2>
+  <div class="scroll-x">
+    <table>
+      <thead><tr><th>When</th><th>Type</th><th>Amount</th><th>Status</th><th>Counterparty</th></tr></thead>
+      <tbody>
+        {% for t in txs %}
+          <tr>
+            <td class="tiny dim nowrap">{{ t.created_at | timeago }}</td>
+            <td>{{ t.category }}</td>
+            <td class="mono {{ 'pos' if t.direction == 'in' else 'neg' }}">
+              {{ '+' if t.direction == 'in' else '−' }}{{ t.amount_sat | sats }}</td>
+            <td>{{ t.status }}{% if t.confirmations %} ({{ t.confirmations }}){% endif %}</td>
+            <td class="tiny mono">{{ (t.address or t.txid) | short(10, 6) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if wds %}
+<div class="card">
+  <h2>Withdrawals</h2>
+  <div class="scroll-x">
+    <table>
+      <thead><tr><th>When</th><th>Amount</th><th>To</th><th>Status</th><th>Txid</th></tr></thead>
+      <tbody>
+        {% for w in wds %}
+          <tr>
+            <td class="tiny dim nowrap">{{ w.created_at | timeago }}</td>
+            <td class="mono">{{ w.amount_sat | sats }}</td>
+            <td class="tiny mono">{{ w.address | short(10, 6) }}</td>
+            <td>{{ w.status }}</td>
+            <td class="tiny mono">{{ (w.txid or '') | short(8, 6) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Activity &amp; admin history</h2>
+  <div class="list">
+    {% for a in audits %}
+      <div class="item">
+        <span class="ico neutral">A</span>
+        <div class="grow">
+          <div class="t">{{ a.action | replace('_', ' ') }}</div>
+          <div class="s">{{ a.admin_username or '—' }} · {{ a.created_at | timeago }} · {{ a.detail | short(40, 10) }}</div>
+        </div>
+      </div>
+    {% endfor %}
+    {% for e in events %}
+      <div class="item">
+        <span class="ico {{ 'in' if e.success else 'out' }}">{{ '✓' if e.success else '!' }}</span>
+        <div class="grow">
+          <div class="t">{{ e.kind | replace('_', ' ') }}</div>
+          <div class="s">{{ e.created_at | timeago }} · {{ e.ip or '—' }}</div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

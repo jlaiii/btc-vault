@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Confirm send — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Confirm your send</h1>
+<p class="muted small">Check every line. Bitcoin transfers cannot be reversed.</p>
+
+<div class="card">
+  <div class="kv">
+    <span class="k">To</span>
+    <span class="v">{{ p.dest }}</span>
+    <span class="k">Amount</span>
+    <span class="v">{{ p.amount_sat | btc }} BTC
+      {% if usd_amount %}<span class="dim small">({{ usd_amount }})</span>{% endif %}</span>
+    <span class="k">Speed</span>
+    <span class="v">{{ p.priority | capitalize }} · {{ p.fee_rate }} sat/vB</span>
+    <span class="k">Network</span>
+    <span class="v">{{ p.network }}</span>
+  </div>
+
+  <div class="summary mt">
+    <div class="line"><span class="k">Amount</span>
+      <span class="v">{{ p.amount_sat | btc }} BTC</span></div>
+    <div class="line"><span class="k">Service fee</span>
+      <span class="v">{{ p.service_fee_sat | btc }} BTC</span></div>
+    <div class="line"><span class="k">Network fee (miners)</span>
+      <span class="v">{{ p.network_fee_sat | btc }} BTC</span></div>
+    <div class="line total"><span class="k">Total deducted</span>
+      <span class="v">{{ p.total_sat | btc }} BTC</span></div>
+    {% if usd_total %}
+    <div class="line"><span class="k"></span>
+      <span class="v dim small">≈ {{ usd_total }}</span></div>
+    {% endif %}
+  </div>
+
+  <hr>
+  <div class="kv">
+    <span class="k">Balance before</span><span class="v">{{ user.balance_sat | btc }} BTC</span>
+    <span class="k">Balance after</span>
+    <span class="v">{{ (user.balance_sat - p.total_sat) | btc }} BTC</span>
+    <span class="k">Inputs used</span><span class="v">{{ p.utxos | length }}</span>
+    <span class="k">Estimated size</span><span class="v">{{ p.vsize_est }} vB</span>
+  </div>
+
+  {% if p.amount_sat > auto_max and auto_max >= 0 %}
+    <div class="notice warn mt">
+      This send is larger than the automatic limit
+      ({{ auto_max | btc }} BTC), so an operator reviews it before it goes out.
+      The amount is held from your balance while it waits.
+    </div>
+  {% endif %}
+
+  {% if p.network_fee_sat > (p.amount_sat * 0.25) %}
+    <div class="notice err mt">
+      <strong>The network fee is more than a quarter of the amount you are sending.</strong>
+      The Bitcoin network is congested or the fee estimate is unusually high.
+      Consider choosing <em>Economy</em>, sending a larger amount, or waiting.
+    </div>
+  {% elif p.network_fee_sat > (p.amount_sat * 0.10) %}
+    <div class="notice warn mt">
+      The network fee is
+      {{ ((p.network_fee_sat / p.amount_sat) * 100) | round(1) }}% of the amount you are
+      sending — fee estimates are high right now. <em>Economy</em> may cost much less.
+    </div>
+  {% endif %}
+
+  <div class="notice info mt">
+    This quote is valid for 10 minutes (until {{ expires_at | fulltime }}). Network fees move,
+    so the final numbers are rechecked when you confirm.
+  </div>
+
+  {% if sudo %}
+    <form method="post" action="{{ url_for('views.send_confirm', quote_id=quote.id) }}" data-once>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="btn-row">
+        <button class="btn primary" type="submit">Send {{ p.amount_sat | btc }} BTC</button>
+        <a class="btn ghost" href="{{ url_for('views.send') }}">Cancel</a>
+      </div>
+    </form>
+  {% else %}
+    <div class="btn-row">
+      <a class="btn primary" href="{{ url_for('auth.confirm', next=url_for('views.send_review', quote_id=quote.id)) }}">
+        Confirm password to send
+      </a>
+      <a class="btn ghost" href="{{ url_for('views.send') }}">Cancel</a>
+    </div>
+    <div class="hint">You have been signed in for a while, so we ask for your password again
+      before moving money.</div>
+  {% endif %}
+</div>
+{% endblock %}

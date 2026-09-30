@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Ledger — {{ site_name }}{% endblock %}
+
+{% block content %}
+{% include "admin/_nav.html" %}
+<h1>Ledger</h1>
+<p class="muted small">
+  Append-only record of every balance movement. Deposits appear once confirmed; sends show
+  the amount, the service fee and the real miner fee separately.
+</p>
+
+<div class="card tight">
+  <div class="row between">
+    <span class="muted small">{{ total }} entries</span>
+    <span class="dim tiny">page {{ page }} of {{ pages }}</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="scroll-x">
+    <table>
+      <thead><tr><th>When</th><th>User</th><th>Kind</th><th>Change</th><th>After</th><th>Ref</th></tr></thead>
+      <tbody>
+        {% for e in rows %}
+          <tr>
+            <td class="tiny dim nowrap">{{ e.created_at | timeago }}</td>
+            <td><a href="{{ url_for('admin.user_detail', uid=e.user_id) }}">{{ e.user_id }}</a></td>
+            <td>{{ e.kind }}</td>
+            <td class="mono {{ 'pos' if e.delta_sat > 0 else ('neg' if e.delta_sat < 0 else 'dim') }}">
+              {{ '+' if e.delta_sat > 0 else '' }}{{ e.delta_sat | sats }}</td>
+            <td class="mono">{{ e.balance_after_sat | sats }}</td>
+            <td class="tiny mono">{{ (e.ref or '') | short(12, 6) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if pages > 1 %}
+<div class="btn-row">
+  {% if page > 1 %}<a class="btn" href="{{ url_for('admin.ledger', page=page-1) }}">Previous</a>{% endif %}
+  {% if page < pages %}<a class="btn" href="{{ url_for('admin.ledger', page=page+1) }}">Next</a>{% endif %}
+</div>
+{% endif %}
+
+<div class="btn-row">
+  <a class="btn" href="{{ url_for('admin.export_csv', what='ledger') }}">Export CSV</a>
+</div>
+{% endblock %}

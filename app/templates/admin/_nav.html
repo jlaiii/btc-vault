@@ -1,0 +1,11 @@
+<div class="segmented">
+  <a href="{{ url_for('admin.index') }}" class="{{ 'on' if request.endpoint == 'admin.index' }}">Overview</a>
+  <a href="{{ url_for('admin.users') }}" class="{{ 'on' if request.endpoint in ['admin.users','admin.user_detail'] }}">Users</a>
+  <a href="{{ url_for('admin.withdrawals') }}" class="{{ 'on' if request.endpoint == 'admin.withdrawals' }}">Withdrawals</a>
+  <a href="{{ url_for('admin.transactions') }}" class="{{ 'on' if request.endpoint == 'admin.transactions' }}">Transactions</a>
+  <a href="{{ url_for('admin.ledger') }}" class="{{ 'on' if request.endpoint == 'admin.ledger' }}">Ledger</a>
+  <a href="{{ url_for('admin.wallet') }}" class="{{ 'on' if request.endpoint in ['admin.wallet','admin.wallet_seed'] }}">Wallet</a>
+  <a href="{{ url_for('admin.alerts') }}" class="{{ 'on' if request.endpoint == 'admin.alerts' }}">Alerts</a>
+  <a href="{{ url_for('admin.audit_log') }}" class="{{ 'on' if request.endpoint == 'admin.audit_log' }}">Audit</a>
+  <a href="{{ url_for('admin.settings') }}" class="{{ 'on' if request.endpoint == 'admin.settings' }}">Settings</a>
+</div>

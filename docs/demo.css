@@ -1,0 +1,150 @@
+/* Demo shell — wraps the real app stylesheet (assets/app.css) in a page. */
+
+body.demo { padding-bottom: 0; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 1rem; }
+
+/* ---------- site header ---------- */
+.site-head {
+  position: sticky; top: 0; z-index: 60;
+  background: rgba(11, 13, 16, .9); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.site-head .inner {
+  max-width: 1080px; margin: 0 auto; padding: .6rem 1rem;
+  display: flex; align-items: center; gap: .7rem; min-height: 56px;
+}
+.site-head nav { display: flex; gap: 1rem; margin-left: auto; align-items: center; }
+.site-head nav a { color: var(--fg-2); font-size: .86rem; font-weight: 600; }
+.site-head nav a:hover { color: var(--btc); }
+.brand-link { display: flex; align-items: center; gap: .55rem; color: var(--fg); font-weight: 700; }
+.brand-link .mark {
+  width: 28px; height: 28px; border-radius: 8px; flex: none;
+  background: linear-gradient(135deg, var(--btc), #e07600);
+  display: grid; place-items: center; color: #1a1000; font-weight: 800; font-size: 15px;
+}
+.badge.demo { background: var(--btc-dim); color: var(--btc-2); border-color: rgba(247, 147, 26, .35); }
+
+/* ---------- hero ---------- */
+.lp-hero { padding: 2.6rem 0 1.4rem; }
+.lp-hero h1 { font-size: 2.05rem; letter-spacing: -.02em; margin-bottom: .6rem; }
+.lp-hero p.lede { color: var(--fg-2); font-size: 1.02rem; max-width: 60ch; margin-bottom: 1.1rem; }
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1.3rem; }
+.chip {
+  font-size: .74rem; font-weight: 600; color: var(--fg-2);
+  border: 1px solid var(--line); background: var(--bg-2);
+  border-radius: 999px; padding: .25rem .6rem;
+}
+.price-note { color: var(--fg-3); font-size: .78rem; margin-top: .7rem; }
+
+.disclaimer {
+  border: 1px solid rgba(245, 158, 11, .3); background: var(--warn-dim);
+  border-radius: var(--r); padding: .8rem .95rem; font-size: .88rem; color: #fde68a;
+}
+.disclaimer strong { color: #fcd34d; }
+
+/* ---------- the frame that pretends to be a browser ---------- */
+.demo-wrap { padding: 1.6rem 0 2.4rem; }
+.frame {
+  border: 1px solid var(--line); border-radius: 18px; overflow: hidden;
+  background: var(--bg); box-shadow: 0 24px 60px rgba(0, 0, 0, .45);
+}
+.frame-bar {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .55rem .7rem; background: var(--bg-2); border-bottom: 1px solid var(--line);
+}
+.frame-bar .dots { display: flex; gap: .3rem; }
+.frame-bar .dots i { width: 9px; height: 9px; border-radius: 50%; background: #3a4250; display: block; }
+.frame-bar .url {
+  flex: 1; min-width: 0; font-family: var(--mono); font-size: .74rem; color: var(--fg-3);
+  background: var(--bg-3); border: 1px solid var(--line); border-radius: 999px;
+  padding: .3rem .7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.frame-bar .url b { color: var(--fg-2); font-weight: 600; }
+
+.app-frame { background: var(--bg); }
+.app-frame main { max-width: 100%; padding: .9rem 1rem 1.2rem; }
+.app-frame nav.tabs { position: static; border-top: 1px solid var(--line); }
+.app-frame nav.tabs .inner { max-width: 100%; }
+.app-frame header.app { position: static; }
+.app-frame > header.app .inner { max-width: 100%; }
+.app-frame .segmented a { flex: 0 0 auto; }
+.app-frame .stat-row { gap: 1.5rem; }
+.app-frame .stat + .stat { border-left: 1px solid var(--line); padding-left: 1.4rem; }
+.view { display: none; }
+.view.on { display: block; }
+.admin-only { display: none; }
+body.is-admin .admin-only { display: block; }
+.sim-note {
+  font-size: .74rem; color: var(--fg-3); border-top: 1px dashed var(--line);
+  margin-top: .9rem; padding-top: .6rem;
+}
+
+/* ---------- content sections ---------- */
+.section { padding: 2.2rem 0; border-top: 1px solid var(--line); }
+.section h2 { font-size: 1.3rem; margin-bottom: .3rem; }
+.section > p.sub { color: var(--fg-2); margin-bottom: 1.2rem; max-width: 70ch; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: .8rem; }
+.box {
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 1rem; min-width: 0;
+}
+.box h3 { color: var(--fg); font-size: .98rem; margin-bottom: .35rem; }
+.box p { color: var(--fg-2); font-size: .88rem; }
+.box ul { margin: .4rem 0 0; padding-left: 1.1rem; color: var(--fg-2); font-size: .88rem; }
+.box li { margin: .25rem 0; }
+.box code, .section code {
+  background: var(--bg-3); border: 1px solid var(--line); border-radius: 5px;
+  padding: .05rem .3rem; color: var(--fg); overflow-wrap: anywhere;
+}
+pre {
+  background: var(--bg-3); border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: .85rem .9rem; overflow-x: auto; font-size: .82rem; line-height: 1.55;
+  font-family: var(--mono); margin: .6rem 0 0;
+}
+pre .c { color: var(--fg-3); }
+table.map { width: 100%; font-size: .86rem; }
+table.map td { vertical-align: top; }
+table.map td:first-child { white-space: nowrap; }
+.mapwrap { overflow-x: auto; }
+
+footer.site {
+  border-top: 1px solid var(--line); padding: 1.6rem 0 2.6rem;
+  color: var(--fg-3); font-size: .84rem;
+}
+footer.site a { color: var(--fg-2); }
+footer.site .row { gap: 1rem; flex-wrap: wrap; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 768px) {
+  .lp-hero { padding: 1.8rem 0 1rem; }
+  .lp-hero h1 { font-size: 1.65rem; }
+  .site-head nav a { font-size: .8rem; }
+  .site-head nav a.hide-sm { display: none; }
+  .cols { grid-template-columns: 1fr; }
+  .app-frame main { padding: .8rem .8rem 1rem; }
+}
+@media (max-width: 520px) {
+  .wrap { padding: 0 .75rem; }
+  .lp-hero h1 { font-size: 1.45rem; }
+  .lp-hero p.lede { font-size: .95rem; }
+  /* list rows with action buttons: stack instead of squeezing the label */
+  .app-frame .item { flex-wrap: wrap; row-gap: .5rem; }
+  .app-frame .item .grow { flex: 1 0 100%; order: 2; }
+  .app-frame .item .ico { order: 1; }
+  .app-frame .item .btn { flex: 1 1 45%; order: 3; }
+  .app-frame .item .amt { order: 2; text-align: right; }
+  .frame { border-radius: 12px; }
+  .frame-bar .url { font-size: .68rem; }
+  .app-frame header.app .inner { padding: .5rem .75rem; min-height: 48px; }
+  .app-frame nav.tabs a { font-size: .6rem; }
+  .app-frame nav.tabs a svg { width: 18px; height: 18px; }
+  .app-frame .grid2 { grid-template-columns: 1fr; }
+  .balance-amount { font-size: 1.6rem; }
+  .section { padding: 1.6rem 0; }
+  .section h2 { font-size: 1.15rem; }
+  pre { font-size: .76rem; }
+}
+@media (max-width: 380px) {
+  .brand-link span.name { display: none; }
+  .app-frame main { padding: .7rem .7rem .9rem; }
+}

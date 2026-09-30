@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} — {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <h1>{{ message }}</h1>
+  <p>{{ detail }}</p>
+</div>
+<div class="btn-row">
+  <a class="btn primary" href="{{ url_for('views.index') }}">Back to the wallet</a>
+</div>
+{% endblock %}

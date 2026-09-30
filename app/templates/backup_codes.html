@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Backup codes — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Save your backup codes</h1>
+
+<div class="notice warn">
+  These are shown <strong>once</strong>. Each code works a single time and is the only way
+  back in if you lose your authenticator. Write them down or store them in a password manager.
+</div>
+
+<div class="card">
+  <div class="codes">
+    {% for c in codes %}<div>{{ c }}</div>{% endfor %}
+  </div>
+  <div class="btn-row">
+    <button class="btn" type="button" data-copy="{{ codes | join('\n') }}"
+            data-copied-label="Copied">Copy all</button>
+    <a class="btn primary" href="{{ url_for('views.security') }}">I have saved them</a>
+  </div>
+</div>
+
+<div class="card tight">
+  <div class="tiny dim">
+    Losing both your authenticator and these codes means contacting the operator to get back
+    in. Nobody can recover them for you.
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Create an account — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Create an account</h1>
+<p class="muted small">Your wallet address is generated the moment you sign up.</p>
+
+{% if closed %}
+  <div class="notice warn">New signups are paused right now. Please check back later.</div>
+  <a class="btn" href="{{ url_for('auth.login') }}">Sign in instead</a>
+{% else %}
+<form method="post" class="card" data-once>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {# honeypot: hidden from people, irresistible to bots #}
+  <div style="position:absolute;left:-9999px" aria-hidden="true">
+    <label for="website">Website</label>
+    <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+  </div>
+
+  <label for="username">Username</label>
+  <input type="text" id="username" name="username" value="{{ username or '' }}"
+         autocapitalize="none" autocorrect="off" spellcheck="false"
+         pattern="[A-Za-z0-9_]{3,20}" maxlength="20" required>
+  <div class="hint">3–20 characters. Letters, numbers and underscore.</div>
+
+  <label for="password">Password</label>
+  <input type="password" id="password" name="password" autocomplete="new-password"
+         minlength="{{ config.PASSWORD_MIN_LENGTH }}" required>
+  <div class="bar" id="pwBar"><span style="width:0%"></span></div>
+  <div class="hint"><span id="pwLabel"></span></div>
+  <div class="hint">At least {{ config.PASSWORD_MIN_LENGTH }} characters, mixing upper and
+    lower case, numbers or symbols.</div>
+
+  <label for="password2">Confirm password</label>
+  <input type="password" id="password2" name="password2" autocomplete="new-password" required>
+
+  <div class="check">
+    <input type="checkbox" id="agree" name="agree" value="1">
+    <label for="agree">I understand this wallet holds funds for me, that I am responsible for
+      keeping my password safe, and that losing both my password and my 2FA device means
+      contacting the operator to recover access — there is no email reset.</label>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn primary" type="submit">Create account</button>
+  </div>
+</form>
+
+<p class="small muted">Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+{% endif %}
+{% endblock %}

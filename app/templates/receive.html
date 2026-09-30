@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Receive Bitcoin — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Receive Bitcoin</h1>
+<p class="muted small">
+  Send coins to any address below. Funds are credited after
+  {{ config.DEFAULT_MIN_CONFIRMATIONS }} confirmation(s) — the page updates by itself.
+</p>
+
+{% if faucet %}
+<div class="card">
+  <h2>Need test coins?</h2>
+  <p class="small muted" style="margin-top:0">
+    This is testnet, so these coins have no real value — ideal for trying a send.
+    {% if faucet.cooldown_hours %}One request every {{ faucet.cooldown_hours }} hours.{% endif %}
+  </p>
+  {% if faucet.ready %}
+    <form method="post" action="{{ url_for('views.faucet_request') }}" data-once>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn primary wide" type="submit">
+        Send me {{ faucet.amount_sat | btc }} testnet BTC
+      </button>
+    </form>
+  {% else %}
+    <div class="notice warn" style="margin:0">
+      Already requested. Available again {{ faucet.ready_at | timeago }} — on
+      {{ faucet.ready_at | fulltime }}.
+    </div>
+  {% endif %}
+  <div class="hint">
+    Prefer an external faucet? Try
+    <a href="https://coinfaucet.eu/en/btc-testnet/" rel="noopener noreferrer" target="_blank">coinfaucet.eu</a>
+    or
+    <a href="https://mempool.space/testnet/faucet" rel="noopener noreferrer" target="_blank">mempool.space</a>,
+    then paste your deposit address below.
+  </div>
+</div>
+{% endif %}
+
+{% if not deposits_enabled %}
+  <div class="notice warn">Deposits are temporarily paused. Do not send funds right now.</div>
+{% endif %}
+
+{% for a in addresses %}
+<div class="card" id="w{{ a.id }}">
+  <div class="row between">
+    <h2 style="margin:0">{{ a.label or 'Wallet' }}</h2>
+    {% if a.is_primary %}<span class="pill info">Primary</span>{% endif %}
+  </div>
+
+  <div class="qr-wrap" style="margin-top:.8rem">
+    <img src="{{ url_for('views.address_qr', address_id=a.id) }}"
+         alt="QR code for {{ a.address }}" width="240" height="240" loading="lazy">
+  </div>
+
+  <div class="addr-box">
+    <span class="a" id="addr-{{ a.id }}">{{ a.address }}</span>
+    <button class="btn sm" type="button" data-copy="{{ a.address }}"
+            data-copied-label="Copied">Copy</button>
+  </div>
+  <div class="tiny dim mt">Derivation path: m/84'/{{ '1' if not is_mainnet else '0' }}'/0'/0/{{ a.idx }}</div>
+</div>
+{% endfor %}
+
+<div class="card">
+  <h2>New wallet</h2>
+  <p class="small muted" style="margin-top:0">
+    Generate an extra deposit address — useful for keeping payments separate. Your balance
+    covers all of them.
+  </p>
+  <form method="post" action="{{ url_for('views.new_address') }}" data-once>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn wide" type="submit">Create a new wallet address</button>
+  </form>
+</div>
+
+<div class="card tight">
+  <div class="tiny dim">
+    Only send {{ 'Bitcoin (mainnet)' if is_mainnet else 'Bitcoin testnet' }} to these addresses.
+    Sending coins from a different network will lose them permanently.
+  </div>
+</div>
+{% endblock %}

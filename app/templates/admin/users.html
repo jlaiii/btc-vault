@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Users — {{ site_name }}{% endblock %}
+
+{% block content %}
+{% include "admin/_nav.html" %}
+<h1>Users</h1>
+
+<form method="get" class="card tight">
+  <div class="row wrap">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search username…"
+           class="grow" style="min-width:180px" autocapitalize="none">
+    <select name="status" style="width:auto">
+      <option value="all" {{ 'selected' if status == 'all' }}>Any status</option>
+      <option value="active" {{ 'selected' if status == 'active' }}>Active</option>
+      <option value="frozen" {{ 'selected' if status == 'frozen' }}>Frozen</option>
+      <option value="banned" {{ 'selected' if status == 'banned' }}>Banned</option>
+    </select>
+    <select name="flag" style="width:auto">
+      <option value="">No filter</option>
+      <option value="negative" {{ 'selected' if flag == 'negative' }}>Negative balance</option>
+      <option value="no2fa" {{ 'selected' if flag == 'no2fa' }}>2FA not enabled</option>
+      <option value="require2fa" {{ 'selected' if flag == 'require2fa' }}>2FA required</option>
+      <option value="pending2fa" {{ 'selected' if flag == 'pending2fa' }}>2FA required, not enrolled</option>
+      <option value="mustchange" {{ 'selected' if flag == 'mustchange' }}>Password change required</option>
+      <option value="locked" {{ 'selected' if flag == 'locked' }}>Locked out</option>
+    </select>
+    <button class="btn" type="submit">Filter</button>
+  </div>
+</form>
+
+<div class="card tight">
+  <div class="row between">
+    <span class="muted small">{{ total }} account{{ '' if total == 1 else 's' }}</span>
+    <span class="dim tiny">page {{ page }} of {{ pages }}</span>
+  </div>
+</div>
+
+<div class="card">
+  {% if rows %}
+    <div class="scroll-x">
+      <table>
+        <thead>
+          <tr><th>User</th><th>Balance</th><th>Status</th><th>2FA</th><th>Last seen</th></tr>
+        </thead>
+        <tbody>
+        {% for u in rows %}
+          <tr>
+            <td>
+              <a href="{{ url_for('admin.user_detail', uid=u.id) }}">{{ u.username }}</a>
+              {% if u.role == 'admin' %}<span class="badge admin">admin</span>{% endif %}
+              {% if u.must_change_password %}<span class="badge frozen">new password</span>{% endif %}
+              {% if u.is_locked_out %}<span class="badge neg">locked</span>{% endif %}
+              <div class="tiny dim">Joined {{ u.created_at | timeago }}</div>
+            </td>
+            <td class="mono {{ 'neg' if u.balance_sat < 0 }}">
+              {{ u.balance_sat | btc }}
+              {% if u.negative_balance %}<div><span class="badge neg">negative</span></div>{% endif %}
+            </td>
+            <td>
+              {% if u.status == 'active' %}<span class="pill ok">active</span>
+              {% elif u.status == 'frozen' %}<span class="pill pend">frozen</span>
+              {% else %}<span class="pill fail">banned</span>{% endif %}
+            </td>
+            <td>{{ 'yes' if u.totp_enabled else '—' }}
+              {% if u.require_2fa and not u.totp_enabled %}
+                <div><span class="badge testnet">required</span></div>
+              {% elif u.require_2fa %}
+                <div><span class="tiny dim">required</span></div>
+              {% endif %}
+            </td>
+            <td class="tiny dim">{{ u.last_login_at | timeago }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty">No users match that filter.</div>
+  {% endif %}
+</div>
+
+{% if pages > 1 %}
+<div class="btn-row">
+  {% if page > 1 %}<a class="btn" href="{{ url_for('admin.users', q=q, status=status, flag=flag, page=page-1) }}">Previous</a>{% endif %}
+  {% if page < pages %}<a class="btn" href="{{ url_for('admin.users', q=q, status=status, flag=flag, page=page+1) }}">Next</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

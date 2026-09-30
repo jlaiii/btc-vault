@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}History — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Transaction history</h1>
+
+<div class="segmented">
+  <a href="{{ url_for('views.activity', kind='all') }}" class="{{ 'on' if kind == 'all' }}">All</a>
+  <a href="{{ url_for('views.activity', kind='in') }}" class="{{ 'on' if kind == 'in' }}">Received</a>
+  <a href="{{ url_for('views.activity', kind='out') }}" class="{{ 'on' if kind == 'out' }}">Sent</a>
+  <a href="{{ url_for('views.activity', kind='deposit') }}" class="{{ 'on' if kind == 'deposit' }}">Deposits</a>
+  <a href="{{ url_for('views.activity', kind='withdrawal') }}" class="{{ 'on' if kind == 'withdrawal' }}">Withdrawals</a>
+</div>
+
+<div class="card tight">
+  <div class="row between">
+    <span class="muted small">{{ total }} transaction{{ '' if total == 1 else 's' }}</span>
+    <span class="dim tiny">page {{ page }} of {{ pages }}</span>
+  </div>
+</div>
+
+{% if rows %}
+  <div class="card">
+    <div class="list">
+      {% for t in rows %}
+        <a class="item" href="{{ url_for('views.activity_detail', tx_id=t.id) }}">
+          <span class="ico {{ 'in' if t.direction == 'in' else ('out' if t.status == 'confirmed' else 'hold') }}">
+            {{ '+' if t.direction == 'in' else '−' }}
+          </span>
+          <div class="grow">
+            <div class="t">
+              {% if t.category == 'deposit' %}Received
+              {% elif t.category == 'withdrawal' %}Sent
+              {% else %}{{ t.category | replace('_', ' ') | capitalize }}{% endif %}
+              <span class="tiny dim">· {{ t.created_at | timeago }}</span>
+            </div>
+            <div class="s">
+              {% if t.direction == 'out' %}
+                to {{ t.address | short(14, 6) }}
+              {% else %}
+                {{ t.txid | short(14, 6) }}
+              {% endif %}
+              ·
+              {% if t.status == 'confirmed' %}
+                <span class="pill ok">confirmed</span>
+              {% elif t.status == 'pending' %}
+                <span class="pill pend">{{ t.confirmations }} conf</span>
+              {% elif t.status == 'queued' %}
+                <span class="pill pend">awaiting approval</span>
+              {% else %}
+                <span class="pill fail">{{ t.status }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="amt {{ 'pos' if t.direction == 'in' else 'neg' }}">
+            {{ '+' if t.direction == 'in' else '−' }}{{ t.amount_sat | btc }}
+            {% if t.service_fee_sat or t.network_fee_sat %}
+              <div class="tiny dim">fees {{ (t.service_fee_sat + t.network_fee_sat) | sats }} sat</div>
+            {% endif %}
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if pages > 1 %}
+    <div class="btn-row">
+      {% if page > 1 %}
+        <a class="btn" href="{{ url_for('views.activity', kind=kind, page=page-1) }}">Newer</a>
+      {% endif %}
+      {% if page < pages %}
+        <a class="btn" href="{{ url_for('views.activity', kind=kind, page=page+1) }}">Older</a>
+      {% endif %}
+    </div>
+  {% endif %}
+{% else %}
+  <div class="card"><div class="empty">
+    Nothing here yet.<br>
+    <a href="{{ url_for('views.receive') }}">Get your deposit address</a> to add funds.
+  </div></div>
+{% endif %}
+{% endblock %}

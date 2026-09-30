@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Alerts — {{ site_name }}{% endblock %}
+
+{% block content %}
+{% include "admin/_nav.html" %}
+<h1>Alerts</h1>
+
+<div class="segmented">
+  <a href="{{ url_for('admin.alerts', show='open') }}" class="{{ 'on' if show == 'open' }}">Open</a>
+  <a href="{{ url_for('admin.alerts', show='all') }}" class="{{ 'on' if show == 'all' }}">All</a>
+</div>
+
+<div class="card">
+  {% if rows %}
+    {% for a in rows %}
+      <div class="item" style="align-items:flex-start">
+        <span class="ico {{ 'out' if a.severity == 'critical' else ('hold' if a.severity == 'warning' else 'neutral') }}">
+          {{ '!' if a.severity == 'critical' else '·' }}
+        </span>
+        <div class="grow">
+          <div class="t">{{ a.title }}</div>
+          <div class="s">
+            <span class="pill {{ 'fail' if a.severity == 'critical' else 'pend' }}">{{ a.severity }}</span>
+            {{ a.kind }}
+            {% if a.username %} · {{ a.username }}{% endif %}
+            · {{ a.created_at | fulltime }}
+          </div>
+          {% if a.body %}<div class="s" style="color:var(--fg-2)">{{ a.body }}</div>{% endif %}
+          {% if a.ack_at %}
+            <div class="tiny dim">acknowledged {{ a.ack_at | timeago }}</div>
+          {% else %}
+            <form method="post" action="{{ url_for('admin.alert_ack', aid=a.id) }}" style="margin-top:.4rem">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="back" value="{{ url_for('admin.alerts', show=show) }}">
+              <button class="btn sm" type="submit">Acknowledge</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      Nothing needs attention. Negative balances, float shortfalls, failed broadcasts and
+      lockouts all land here.
+    </div>
+  {% endif %}
+</div>
+
+{% if rows %}
+<form method="post" action="{{ url_for('admin.alerts_ack_all') }}"
+      data-confirm="Acknowledge every open alert?">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn wide ghost" type="submit">Acknowledge all open alerts</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Withdrawals — {{ site_name }}{% endblock %}
+
+{% block content %}
+{% include "admin/_nav.html" %}
+<h1>Withdrawals</h1>
+
+<div class="segmented">
+  {% for s in ['queued','sent','failed','rejected','all'] %}
+    <a href="{{ url_for('admin.withdrawals', status=s) }}" class="{{ 'on' if status == s }}">{{ s | capitalize }}</a>
+  {% endfor %}
+</div>
+
+{% if status == 'queued' %}
+  <div class="notice info">
+    These are above the automatic limit and are already signed and held. Approving broadcasts
+    the prepared transaction; rejecting returns the funds to the user's balance.
+  </div>
+{% endif %}
+
+<div class="card">
+  {% if rows %}
+    {% for w in rows %}
+      <div class="item" style="align-items:flex-start">
+        <span class="ico {{ 'hold' if w.status == 'queued' else ('out' if w.status == 'sent' else 'neutral') }}">
+          {{ '…' if w.status == 'queued' else ('−' if w.status == 'sent' else '·') }}
+        </span>
+        <div class="grow">
+          <div class="t">{{ w.amount_sat | btc }} BTC
+            <span class="tiny dim">· {{ w.created_at | timeago }}</span>
+          </div>
+          <div class="s mono" style="word-break:break-all">to {{ w.address }}</div>
+          <div class="s">
+            fee {{ w.service_fee_sat | sats }} sat service ·
+            {{ w.network_fee_sat | sats }} sat network ·
+            {{ w.fee_rate }} sat/vB · {{ w.priority }}
+            · total {{ w.total_sat | sats }} sat
+          </div>
+          {% if w.txid %}
+            <div class="s mono">{{ w.txid }}</div>
+          {% endif %}
+          {% if w.error %}
+            <div class="s" style="color:#fca5a5">{{ w.error | short(80, 20) }}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% if w.status == 'queued' %}
+        <div class="btn-row" style="margin-top:.2rem; margin-bottom:.9rem">
+          <form method="post" action="{{ url_for('admin.withdrawal_decide', wid=w.id) }}"
+                data-confirm="Broadcast this withdrawal now?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="decision" value="approve">
+            <button class="btn primary" type="submit">Approve &amp; send</button>
+          </form>
+          <form method="post" action="{{ url_for('admin.withdrawal_decide', wid=w.id) }}"
+                data-confirm="Reject and return the funds?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="decision" value="reject">
+            <input type="text" name="reason" placeholder="Reason (optional)" maxlength="300">
+            <button class="btn danger" type="submit">Reject</button>
+          </form>
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% else %}
+    <div class="empty">Nothing in this list.</div>
+  {% endif %}
+</div>
+
+{% if not sudo and rows %}
+  <div class="notice info">Approving or rejecting needs a fresh password confirmation.</div>
+{% endif %}
+{% endblock %}

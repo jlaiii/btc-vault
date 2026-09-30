@@ -1,0 +1,19 @@
+# ---- secrets: never commit these ----
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+HOTWALLET_MNEMONIC.txt
+backup-*.sql.gz
+
+# ---- dependencies ----
+requests~=2.32
+pytest~=8.3
+
+# ---- ignored ----
+__pycache__/
+*.pyc
+*.log
+.pytest_cache/
+.DS_Store

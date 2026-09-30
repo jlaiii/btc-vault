@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Two-factor code — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Two-factor authentication</h1>
+<p class="muted small">Enter the 6-digit code from your authenticator app.</p>
+
+<form method="post" class="card" data-once>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <label for="code">Authentication code</label>
+  <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code"
+         pattern="[0-9A-Za-z\- ]{6,16}" maxlength="16" required autofocus>
+  <div class="hint">Lost your authenticator? Enter one of your backup codes instead.</div>
+
+  <div class="btn-row">
+    <button class="btn primary" type="submit">Verify</button>
+  </div>
+</form>
+
+<p class="small muted"><a href="{{ url_for('auth.login') }}">Start over</a></p>
+{% endblock %}

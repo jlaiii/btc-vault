@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Audit log — {{ site_name }}{% endblock %}
+
+{% block content %}
+{% include "admin/_nav.html" %}
+<h1>Audit log</h1>
+<p class="muted small">Every administrative action, including read-only ones like revealing
+  the seed or exporting data.</p>
+
+<div class="card">
+  {% if rows %}
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>When</th><th>Admin</th><th>Action</th><th>Target</th><th>Detail</th><th>IP</th></tr></thead>
+        <tbody>
+          {% for a in rows %}
+            <tr>
+              <td class="tiny dim nowrap">{{ a.created_at | fulltime }}</td>
+              <td>{{ a.admin_username or '—' }}</td>
+              <td>{{ a.action | replace('_', ' ') }}</td>
+              <td class="tiny">
+                {% if a.target_user_id %}
+                  <a href="{{ url_for('admin.user_detail', uid=a.target_user_id) }}">
+                    {{ a.target_username or a.target_user_id }}</a>
+                {% else %}—{% endif %}
+              </td>
+              <td class="tiny dim">{{ (a.detail or '') | short(50, 16) }}</td>
+              <td class="tiny mono">{{ a.ip or '' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty">No admin actions recorded yet.</div>
+  {% endif %}
+</div>
+
+{% if pages > 1 %}
+<div class="btn-row">
+  {% if page > 1 %}<a class="btn" href="{{ url_for('admin.audit_log', page=page-1) }}">Previous</a>{% endif %}
+  {% if page < pages %}<a class="btn" href="{{ url_for('admin.audit_log', page=page+1) }}">Next</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

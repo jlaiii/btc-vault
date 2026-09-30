@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Transaction — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>
+  {% if tx.category == 'deposit' %}Deposit
+  {% elif tx.category == 'withdrawal' %}Sent
+  {% else %}{{ tx.category | replace('_', ' ') | capitalize }}{% endif %}
+</h1>
+
+<div class="card">
+  <div class="balance-amount" style="font-size:1.5rem">
+    {{ '+' if tx.direction == 'in' else '−' }}{{ tx.amount_sat | btc }}<span class="unit">BTC</span>
+  </div>
+  <div class="muted small">
+    {% if price %}≈ {{ tx.amount_sat | usd }}{% endif %}
+    · {{ tx.created_at | timeago }}
+  </div>
+
+  <div class="summary mt">
+    <div class="line"><span class="k">Amount</span><span class="v">{{ tx.amount_sat | btc }} BTC</span></div>
+    {% if tx.service_fee_sat %}
+      <div class="line"><span class="k">Service fee</span><span class="v">{{ tx.service_fee_sat | btc }} BTC</span></div>
+    {% endif %}
+    {% if tx.network_fee_sat %}
+      <div class="line"><span class="k">Network fee</span><span class="v">{{ tx.network_fee_sat | btc }} BTC</span></div>
+    {% endif %}
+    {% if tx.total_sat %}
+      <div class="line total"><span class="k">Balance effect</span>
+        <span class="v">{{ '+' if tx.total_sat > 0 else '−' }}{{ (tx.total_sat if tx.total_sat > 0 else -tx.total_sat) | btc }} BTC</span>
+      </div>
+    {% endif %}
+  </div>
+
+  <hr>
+  <div class="kv">
+    <span class="k">Status</span>
+    <span class="v">
+      {% if tx.status == 'confirmed' %}<span class="pill ok">confirmed</span>
+      {% elif tx.status == 'pending' %}<span class="pill pend">pending · {{ tx.confirmations }} confirmation{{ '' if tx.confirmations == 1 else 's' }}</span>
+      {% elif tx.status == 'queued' %}<span class="pill pend">awaiting approval</span>
+      {% else %}<span class="pill fail">{{ tx.status }}</span>{% endif %}
+    </span>
+    {% if tx.address %}
+      <span class="k">{{ 'From' if tx.direction == 'in' else 'To' }}</span>
+      <span class="v">{{ tx.address }}</span>
+    {% endif %}
+    {% if tx.txid %}
+      <span class="k">Transaction ID</span><span class="v">{{ tx.txid }}</span>
+    {% endif %}
+    {% if tx.block_height %}
+      <span class="k">Block</span><span class="v">{{ tx.block_height }}</span>
+    {% endif %}
+    {% if tx.fee_rate %}
+      <span class="k">Fee rate</span><span class="v">{{ tx.fee_rate }} sat/vB ({{ tx.priority }})</span>
+    {% endif %}
+    {% if tx.label %}
+      <span class="k">Note</span><span class="v">{{ tx.label }}</span>
+    {% endif %}
+    <span class="k">Recorded</span><span class="v">{{ tx.created_at | fulltime }}</span>
+    {% if tx.confirmed_at %}
+      <span class="k">Confirmed</span><span class="v">{{ tx.confirmed_at | fulltime }}</span>
+    {% endif %}
+  </div>
+
+  <div class="btn-row">
+    {% if tx.txid %}
+      <button class="btn" type="button" data-copy="{{ tx.txid }}" data-copied-label="Copied">Copy txid</button>
+      {% if explorer_url %}
+        <a class="btn" href="{{ explorer_url }}" target="_blank" rel="noopener noreferrer">View on explorer</a>
+      {% endif %}
+    {% endif %}
+    <a class="btn ghost" href="{{ url_for('views.activity') }}">Back</a>
+  </div>
+
+  {% if tx.error %}
+    <div class="notice err mt">{{ tx.error }}</div>
+  {% endif %}
+</div>
+{% endblock %}

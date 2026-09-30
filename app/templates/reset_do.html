@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Choose a new password — {{ site_name }}{% endblock %}
+
+{% block content %}
+<h1>Choose a new password</h1>
+
+<form method="post" class="card" data-once>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <label for="password">New password</label>
+  <input type="password" id="password" name="password" autocomplete="new-password"
+         minlength="{{ config.PASSWORD_MIN_LENGTH }}" required autofocus>
+  <div class="bar" id="pwBar"><span style="width:0%"></span></div>
+  <div class="hint"><span id="pwLabel"></span></div>
+
+  <label for="password2">Confirm new password</label>
+  <input type="password" id="password2" name="password2" autocomplete="new-password" required>
+
+  <div class="btn-row">
+    <button class="btn primary" type="submit">Set new password</button>
+  </div>
+  <div class="hint">All other signed-in devices will be signed out.</div>
+</form>
+{% endblock %}

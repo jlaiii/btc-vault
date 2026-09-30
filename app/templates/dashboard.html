@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}My wallet — {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="balance-card" data-refresh="60">
+  <div class="tiny dim">Available balance</div>
+  <div class="balance-amount">{{ user.balance_sat | btc }}<span class="unit">BTC</span></div>
+  <div class="balance-usd">
+    {% if price %}≈ {{ usd_total | usd }}<span class="dim"> · BTC at ${{ "{:,.0f}".format(price) }}</span>
+    {% else %}<span class="dim">USD price unavailable</span>{% endif %}
+  </div>
+  <div class="stat-row">
+    <div class="stat">
+      <div class="k">In sats</div>
+      <div class="v">{{ user.balance_sat | sats }}</div>
+    </div>
+    {% if pending_total %}
+    <div class="stat">
+      <div class="k">Incoming</div>
+      <div class="v" style="color:var(--warn)">+{{ pending_total | sats }}</div>
+    </div>
+    {% endif %}
+    <div class="stat">
+      <div class="k">Wallets</div>
+      <div class="v">{{ addresses | length }}</div>
+    </div>
+    <div class="stat">
+      <div class="k">Status</div>
+      <div class="v">{{ user.status | capitalize }}</div>
+    </div>
+  </div>
+</div>
+
+{% if user.negative_balance %}
+  <div class="notice err">
+    <strong>Your balance is negative.</strong> The operator has been notified. Deposits will
+    first settle the outstanding amount.
+  </div>
+{% endif %}
+
+{% if user.is_frozen %}
+  <div class="notice warn">
+    <strong>Your account is frozen.</strong> Deposits still work, but sending and withdrawing
+    are disabled. Contact the operator if this is unexpected.
+  </div>
+{% endif %}
+
+{% if not user.totp_enabled %}
+  <a class="notice warn" href="{{ url_for('views.security') }}" style="display:block">
+    <strong>Turn on two-factor authentication.</strong>
+    It takes a minute and protects your balance even if your password leaks.
+  </a>
+{% endif %}
+
+<div class="btn-row" style="margin-top:0">
+  <a class="btn primary" href="{{ url_for('views.send') }}">Send Bitcoin</a>
+  <a class="btn" href="{{ url_for('views.receive') }}">Receive</a>
+</div>
+
+{% if queued %}
+<div class="card">
+  <h2>Awaiting approval</h2>
+  {% for w in queued %}
+    <div class="item">
+      <span class="ico hold">…</span>
+      <div class="grow">
+        <div class="t">{{ w.amount_sat | btc }} BTC</div>
+        <div class="s">to {{ w.address | short(16, 8) }} · {{ w.created_at | timeago }}</div>
+      </div>
+      <div class="amt">
+        <span class="pill pend">Pending</span>
+      </div>
+    </div>
+  {% endfor %}
+  <div class="hint">These are larger than the automatic send limit, so an operator approves
+    them by hand. The amount is already on hold.</div>
+</div>
+{% endif %}
+
+{% if pending %}
+<div class="card">
+  <h2>Incoming (waiting for confirmation)</h2>
+  {% for t in pending %}
+    <div class="item">
+      <span class="ico in">+</span>
+      <div class="grow">
+        <div class="t">{{ t.amount_sat | btc }} BTC</div>
+        <div class="s">{{ t.txid | short(12, 6) }} · {{ t.created_at | timeago }}</div>
+      </div>
+      <div class="amt"><span class="pill pend">{{ t.confirmations }} conf</span></div>
+    </div>
+  {% endfor %}
+  <div class="hint">Credited automatically once confirmed. This page refreshes on its own.</div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="row between">
+    <h2 style="margin:0">Recent activity</h2>
+    <a class="small" href="{{ url_for('views.activity') }}">See all</a>
+  </div>
+  {% if recent %}
+    <div class="list" style="margin-top:.5rem">
+      {% for t in recent %}
+        <a class="item" href="{{ url_for('views.activity_detail', tx_id=t.id) }}">
+          <span class="ico {{ 'in' if t.direction == 'in' else ('out' if t.status == 'confirmed' else 'hold') }}">
+            {{ '+' if t.direction == 'in' else '−' }}
+          </span>
+          <div class="grow">
+            <div class="t">
+              {% if t.category == 'deposit' %}Deposit
+              {% elif t.category == 'withdrawal' %}Sent
+              {% else %}{{ t.category | replace('_',' ') | capitalize }}{% endif %}
+            </div>
+            <div class="s">{{ t.created_at | timeago }}
+              {% if t.status != 'confirmed' %} · {{ t.status }}{% endif %}</div>
+          </div>
+          <div class="amt {{ 'pos' if t.direction == 'in' else 'neg' }}">
+            {{ '+' if t.direction == 'in' else '−' }}{{ t.amount_sat | btc }}
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">
+      No activity yet.<br>
+      <a href="{{ url_for('views.receive') }}">Get your deposit address</a> to add funds.
+    </div>
+  {% endif %}
+</div>
+
+{% if not is_mainnet %}
+<div class="card tight">
+  <div class="small muted">
+    Running on <strong>testnet</strong> — you can grab free test coins from the
+    <a href="{{ url_for('views.receive') }}">Receive page</a>.
+  </div>
+</div>
+{% endif %}
+
+<p class="tiny dim center">
+  Fee tiers: fast {{ rates.fast }} · normal {{ rates.normal }} · economy {{ rates.economy }} sat/vB
+  {% if rates_meta.source == 'default' %}(using default rates — the fee oracle is unreachable){% endif %}
+</p>
+{% endblock %}
