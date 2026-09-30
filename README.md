@@ -17,10 +17,13 @@ Testnet coins are real coins on a test network and worth nothing. Read
 - Chain data: Esplora REST APIs (mempool.space primary, blockstream.info failover)
 - Addresses: BIP39 seed → BIP84 (native segwit), one derivation index per user
 
-**Building on this with an AI agent?** Start at [`AGENTS.md`](AGENTS.md) — what this
-codebase is, the rules that must not be broken, and how to verify a change. Then
-[`llms.txt`](llms.txt) for the doc index and [`docs/agents/context.md`](docs/agents/context.md)
-for a generated map of every route, model and setting.
+**Building on this with an AI agent?** Start at [`llms.txt`](llms.txt) — a short index of
+every document, in the order worth reading — then [`docs/generated/context.md`](docs/generated/context.md)
+for a generated map of every route, model, setting and environment variable (regenerate
+it with `scripts/build_agent_docs.py` so it cannot drift). `docs/security.md` and the
+rules in `README.md` are the parts an agent must not break; the verification section
+below is how it proves it did not. [`llms-full.txt`](llms-full.txt) is the whole set
+concatenated into one file for a single-context read.
 
 ---
 
@@ -204,6 +207,8 @@ docker compose exec -T web python /app/scripts/e2e_test.py          # full behav
 docker compose exec -T web python /app/scripts/mainnet_check.py     # mainnet-safe, cleans up
 docker compose exec -T web python /app/scripts/check_admin_settings.py  # admin 2FA notice + settings save
 docker compose exec -T web python /app/scripts/check_admin_user_controls.py  # require/clear 2FA, forced password change, unlock
+python3 scripts/ci_smoke.py                        # boot + behaviour on a throwaway DB (what CI runs)
+python3 scripts/build_agent_docs.py --llms-full llms-full.txt   # refresh the concatenated docs
 docker compose exec -T web python -m app.cli preflight              # GO/NO-GO for real money
 
 # money
