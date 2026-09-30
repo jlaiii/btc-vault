@@ -323,3 +323,15 @@ Also before real money:
   between quote and confirm — the final numbers are re-derived from the signed
   transaction, so the fee shown is the fee paid.
 - Reorgs deeper than the confirmation threshold are not automatically reversed.
+
+---
+
+## License and responsibility
+
+MIT — see [LICENSE](LICENSE). Use it, fork it, sell a hosted version if you like.
+
+This software moves Bitcoin, and whoever runs it is responsible for the coins it holds
+and for the laws that apply to custodying other people's funds where they live. In the
+US that means FinCEN MSB registration and state licences (Texas Finance Code Ch. 151 in
+TX) once you hold coins for other people. `python -m app.cli preflight` prints that as a
+REVIEW item for exactly this reason: it is a legal question, not a technical one.
